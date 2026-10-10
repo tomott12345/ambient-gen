@@ -1,0 +1,23 @@
+{
+  "description": "Wide saw + pulse supersaw, bright and airy, filter opens as each chord arrives",
+  "saw": 0.7,
+  "square": 0.4,
+  "pulse_width": 0.3,
+  "sine": 0.0,
+  "unison": 7,
+  "detune_cents": 30,
+  "width": 1.0,
+  "filter": "lowpass",
+  "cutoff_hz": 1800,
+  "resonance": 0.2,
+  "key_track": 0.5,
+  "filter_env_octaves": 1.5,
+  "filter_attack": 6,
+  "filter_decay": 20,
+  "attack": 5,
+  "sustain": 1.0,
+  "release": 12,
+  "breath_hz": 0.12,
+  "breath_depth": 0.1,
+  "gain_db": 5.5
+}

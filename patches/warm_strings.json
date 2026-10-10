@@ -1,0 +1,21 @@
+{
+  "description": "Five-voice saw ensemble with a slowly breathing filter",
+  "saw": 1.0,
+  "sine": 0.0,
+  "unison": 5,
+  "detune_cents": 22,
+  "width": 1.0,
+  "drift_cents": 3,
+  "filter": "lowpass",
+  "cutoff_hz": 900,
+  "resonance": 0.15,
+  "key_track": 0.6,
+  "filter_lfo_hz": 0.03,
+  "filter_lfo_octaves": 0.8,
+  "attack": 6,
+  "sustain": 1.0,
+  "release": 9,
+  "breath_hz": 0.07,
+  "breath_depth": 0.15,
+  "gain_db": -1.0
+}

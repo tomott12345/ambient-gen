@@ -1,0 +1,38 @@
+{
+  "harmony": {
+    "key": "B",
+    "scale": "lydian",
+    "chord_notes": 5,
+    "chord_seconds_min": 30,
+    "chord_seconds_max": 60,
+    "modulate_minutes": 10
+  },
+  "pad": {
+    "patch": "shimmer_pad",
+    "level": 0.45
+  },
+  "bass": {
+    "level": 0.18
+  },
+  "bells": {
+    "patch": "glass_crystal",
+    "per_minute": 9,
+    "octave": 6,
+    "chord_bias": 0.9,
+    "reverb_send": 1.0
+  },
+  "air": {
+    "level": 0.03,
+    "cutoff_hz": 10000
+  },
+  "reverb": {
+    "seconds": 15,
+    "damping": 0.25,
+    "level": 0.8
+  },
+  "master": {
+    "lowpass_hz": 16000,
+    "fade_in": 20,
+    "fade_out": 45
+  }
+}

@@ -1,11 +1,36 @@
 {
-  "harmony": { "key": "E", "scale": "lydian", "chord_notes": 5,
-               "chord_seconds_min": 15, "chord_seconds_max": 30, "modulate_minutes": 8 },
-  "pad":     { "brightness": 0.5, "octave": 4, "detune_cents": 12, "width": 1.0, "level": 0.4 },
-  "bass":    { "enabled": false },
-  "bells":   { "per_minute": 14, "octave": 6, "decay": 5, "tone_ratio": 3.5, "brightness": 2.5,
-               "chord_bias": 0.85, "level": 0.4 },
-  "air":     { "level": 0.03, "cutoff_hz": 9000 },
-  "reverb":  { "seconds": 8, "damping": 0.3 },
-  "master":  { "lowpass_hz": 15000 }
+  "harmony": {
+    "key": "E",
+    "scale": "lydian",
+    "chord_notes": 5,
+    "chord_seconds_min": 15,
+    "chord_seconds_max": 30,
+    "modulate_minutes": 8
+  },
+  "pad": {
+    "patch": "shimmer_pad",
+    "octave": 4,
+    "level": 0.4
+  },
+  "bass": {
+    "enabled": false
+  },
+  "bells": {
+    "patch": "glass_crystal",
+    "per_minute": 14,
+    "octave": 6,
+    "chord_bias": 0.85,
+    "level": 0.4
+  },
+  "air": {
+    "level": 0.03,
+    "cutoff_hz": 9000
+  },
+  "reverb": {
+    "seconds": 8,
+    "damping": 0.3
+  },
+  "master": {
+    "lowpass_hz": 15000
+  }
 }

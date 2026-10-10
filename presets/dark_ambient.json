@@ -1,0 +1,49 @@
+{
+  "harmony": {
+    "key": "C",
+    "scale": "phrygian",
+    "chord_notes": 3,
+    "chord_seconds_min": 50,
+    "chord_seconds_max": 120,
+    "modulate_minutes": 0
+  },
+  "pad": {
+    "patch": "abyss_drone",
+    "octave": 2,
+    "open_voicing": false,
+    "level": 0.55,
+    "reverb_send": 0.7
+  },
+  "bass": {
+    "octave": 1,
+    "level": 0.3,
+    "synth": {
+      "attack": 15,
+      "release": 20
+    }
+  },
+  "bells": {
+    "patch": "church_bell",
+    "octave": 4,
+    "per_minute": 1.5,
+    "chord_bias": 0.9,
+    "level": 0.3,
+    "reverb_send": 0.9
+  },
+  "air": {
+    "level": 0.07,
+    "cutoff_hz": 600,
+    "swell_seconds": 150
+  },
+  "reverb": {
+    "seconds": 16,
+    "damping": 0.75,
+    "level": 0.75
+  },
+  "master": {
+    "gain_db": -3,
+    "lowpass_hz": 4500,
+    "fade_in": 40,
+    "fade_out": 90
+  }
+}

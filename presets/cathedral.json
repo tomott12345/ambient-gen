@@ -1,0 +1,42 @@
+{
+  "harmony": {
+    "key": "G",
+    "scale": "major",
+    "chord_notes": 3,
+    "chord_seconds_min": 20,
+    "chord_seconds_max": 40,
+    "modulate_minutes": 15
+  },
+  "pad": {
+    "patch": "organ",
+    "open_voicing": false,
+    "level": 0.45
+  },
+  "bass": {
+    "octave": 1,
+    "level": 0.25,
+    "synth": {
+      "attack": 2.5,
+      "release": 5
+    }
+  },
+  "bells": {
+    "patch": "church_bell",
+    "octave": 4,
+    "per_minute": 1,
+    "chord_bias": 1.0,
+    "level": 0.25
+  },
+  "air": {
+    "enabled": false
+  },
+  "reverb": {
+    "seconds": 18,
+    "damping": 0.35,
+    "level": 0.8,
+    "predelay_ms": 60
+  },
+  "master": {
+    "lowpass_hz": 12000
+  }
+}

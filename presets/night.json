@@ -1,10 +1,49 @@
 {
-  "harmony": { "key": "A", "scale": "minor_pentatonic", "chord_notes": 3,
-               "chord_seconds_min": 30, "chord_seconds_max": 70, "modulate_minutes": 0 },
-  "pad":     { "brightness": 0.15, "octave": 3, "attack": 14, "release": 18, "detune_cents": 6 },
-  "bass":    { "level": 0.22 },
-  "bells":   { "per_minute": 2, "octave": 5, "decay": 9, "tone_ratio": 1.0, "brightness": 0.8 },
-  "air":     { "level": 0.04, "cutoff_hz": 1200, "swell_seconds": 90 },
-  "reverb":  { "seconds": 11, "damping": 0.7, "level": 0.7 },
-  "master":  { "lowpass_hz": 6500, "fade_in": 30, "fade_out": 60 }
+  "harmony": {
+    "key": "A",
+    "scale": "minor_pentatonic",
+    "chord_notes": 3,
+    "chord_seconds_min": 30,
+    "chord_seconds_max": 70,
+    "modulate_minutes": 0
+  },
+  "pad": {
+    "patch": "soft_pad",
+    "synth": {
+      "cutoff_hz": 450,
+      "attack": 14,
+      "release": 18,
+      "detune_cents": 12
+    }
+  },
+  "bass": {
+    "level": 0.22,
+    "synth": {
+      "attack": 14,
+      "release": 18
+    }
+  },
+  "bells": {
+    "patch": "felt_piano",
+    "per_minute": 2,
+    "octave": 5,
+    "synth": {
+      "decay": 9
+    }
+  },
+  "air": {
+    "level": 0.04,
+    "cutoff_hz": 1200,
+    "swell_seconds": 90
+  },
+  "reverb": {
+    "seconds": 11,
+    "damping": 0.7,
+    "level": 0.7
+  },
+  "master": {
+    "lowpass_hz": 6500,
+    "fade_in": 30,
+    "fade_out": 60
+  }
 }

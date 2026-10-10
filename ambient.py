@@ -6,7 +6,9 @@ ambient.py -- generative ambient music, rendered straight to a long WAV file.
     python3 ambient.py --minutes 180 --seed 7        # 3 hours, reproducible
     python3 ambient.py --preset presets/night.json   # a saved sound
     python3 ambient.py --set pad.brightness=0.2 --set bells.per_minute=2
+    python3 ambient.py --set pad.patch=warm_strings --set pad.synth.cutoff_hz=500
     python3 ambient.py --list-params                 # every knob as JSON (for a UI)
+    python3 ambient.py --list-patches                # every synth patch
 
 Every run also writes <name>.json next to the WAV with the exact settings and
 seed. Pass that file back with --preset to render the identical piece again.
@@ -16,7 +18,9 @@ The file reads top to bottom:
   2. KNOBS        every setting you can tweak, with its range and a short help
   3. COMPOSE      plan the whole piece up front as a list of notes. This is
                   cheap: hours of music are only a few thousand notes.
-  4. INSTRUMENTS  turn one note into sound: pad, bass, bells, plus "air" noise
+  4. INSTRUMENTS  pad, bass and bells are played by the synth engine in
+                  synth.py, each with its own patch (patches/*.json); "air"
+                  noise and the reverb live here
   5. RENDER       walk through time in 10-second blocks. Each block mixes the
                   notes sounding in it, adds reverb, and is written to disk, so
                   a 10-hour file needs no more memory than a 10-second one.
@@ -27,18 +31,20 @@ from __future__ import annotations
 
 import argparse
 import bisect
+import zlib
 import json
 import math
 import secrets
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 from scipy import signal
 
 import ambient_io
+import synth
 
 TAU = 2 * math.pi
 
@@ -95,15 +101,10 @@ KNOBS = [
     K("pad.enabled", True, "Play the pad"),
     K("pad.level", 0.5, "Pad volume", 0, 1),
     K("pad.octave", 3, "Register: 3 sits around C3-C4", 1, 5),
-    K("pad.brightness", 0.35, "0 = soft and dark, 1 = bright and buzzy", 0, 1),
-    K("pad.detune_cents", 8.0, "Detune between each note's 3 voices (a chorus effect)", 0, 40),
-    K("pad.width", 0.8, "Stereo width of the pad", 0, 1),
-    K("pad.attack", 8.0, "Seconds for a chord to fade in", 0.05, 60),
-    K("pad.release", 10.0, "Seconds for a chord to fade out (overlaps the next chord)", 0.05, 60),
     K("pad.open_voicing", True, "Spread chord notes over two octaves instead of one"),
     K("pad.reverb_send", 0.6, "How much pad goes into the reverb", 0, 1),
 
-    # bass: the chord root, an octave or two down (uses the pad's attack/release)
+    # bass: the chord root, an octave or two down
     K("bass.enabled", True, "Play the bass"),
     K("bass.level", 0.28, "Bass volume", 0, 1),
     K("bass.octave", 2, "Register: 2 sits around C2-C3", 0, 4),
@@ -114,9 +115,6 @@ KNOBS = [
     K("bells.level", 0.35, "Bell volume", 0, 1),
     K("bells.per_minute", 5.0, "Notes per minute at their busiest", 0, 60),
     K("bells.octave", 5, "Register: 5 sits around C5-G6", 3, 7),
-    K("bells.decay", 6.0, "Seconds until a bell note has died away", 0.2, 30),
-    K("bells.tone_ratio", 3.5, "Timbre: 1 = electric piano, 2 = hollow, 3.5 = bell, 1.41 = metallic", 0.25, 8),
-    K("bells.brightness", 1.5, "How much shimmer each strike has (FM index)", 0, 8),
     K("bells.chord_bias", 0.7, "Chance of picking a chord note over any scale note", 0, 1),
     K("bells.reverb_send", 0.8, "How much bell goes into the reverb", 0, 1),
 
@@ -139,6 +137,19 @@ KNOBS = [
     K("master.fade_in", 8.0, "Fade-in seconds at the start", 0, 600),
     K("master.fade_out", 25.0, "Fade-out seconds at the end", 0, 600),
 ]
+
+# Each synth-played layer picks a patch, and every synth setting can also be
+# overridden per layer: pad.synth.cutoff_hz, bells.synth.decay, ...
+# The knob defaults come from the layer's default patch.
+LAYER_PATCHES = {"pad": "soft_pad", "bass": "round_bass", "bells": "fm_bell"}
+
+for _layer, _patch in LAYER_PATCHES.items():
+    KNOBS.append(K(f"{_layer}.patch", _patch, f"Synth patch (patches/*.json); it fills in {_layer}.synth.*",
+                   choices=synth.available_patches()))
+    _values = synth.load_patch(_patch)
+    for _p in synth.PARAMS:
+        KNOBS.append(K(f"{_layer}.synth.{_p['name']}", _values[_p['name']], _p["help"], _p["min"], _p["max"],
+                       _p["choices"]))
 
 KNOB_BY_PATH = {k["path"]: k for k in KNOBS}
 DEFAULTS = {k["path"]: k["default"] for k in KNOBS}
@@ -188,18 +199,26 @@ def nest(flat: dict) -> dict:
 
 
 def load_settings(preset: str | None, overrides: list[str]) -> dict:
-    """defaults <- preset file <- --set overrides. Returns a flat {"pad.level": 0.5, ...} dict."""
-    S = dict(DEFAULTS)
+    """defaults <- each layer's patch <- preset file <- --set overrides.
+    Returns a flat {"pad.level": 0.5, "pad.synth.cutoff_hz": 750.0, ...} dict."""
+    given = {}
     if preset:
         data = json.loads(Path(preset).read_text())
         data = data.get("settings", data)  # also accepts a render's .json sidecar
-        for path, v in flatten(data).items():
-            S[path] = coerce(path, v)
+        given.update(flatten(data))
     for item in overrides:
         path, sep, v = item.partition("=")
         if not sep:
             raise SystemExit(f"--set expects path=value, got {item!r}")
-        S[path.strip()] = coerce(path.strip(), v.strip())
+        given[path.strip()] = v.strip()
+
+    S = dict(DEFAULTS)
+    for layer in LAYER_PATCHES:  # a chosen patch replaces the whole synth section...
+        S[f"{layer}.patch"] = coerce(f"{layer}.patch", given.get(f"{layer}.patch", S[f"{layer}.patch"]))
+        for name, v in synth.load_patch(S[f"{layer}.patch"]).items():
+            S[f"{layer}.synth.{name}"] = v
+    for path, v in given.items():  # ...then individual settings tweak it
+        S[path] = coerce(path, v)
     if S["harmony.chord_seconds_max"] < S["harmony.chord_seconds_min"]:
         raise SystemExit("harmony.chord_seconds_max must be >= harmony.chord_seconds_min")
     return S
@@ -218,11 +237,13 @@ class Note:
     midi: int        # pitch, 60 = middle C
     vel: float = 1.0
     pan: float = 0.0           # -1 left .. +1 right
-    rand: tuple = ()           # per-note random values, fixed now so every block agrees
+    seed: int = 0              # the note's own randomness (voice phases, drift), same in every block
+    voice: object = field(default=None, repr=False)  # synth state carried between blocks
 
 
-def midi_to_hz(m: float) -> float:
-    return 440.0 * 2 ** ((m - 69) / 12)
+def make_note(kind, start, release, end, midi, **kw) -> Note:
+    seed = zlib.crc32(f"{kind}:{start:.6f}:{midi}".encode())
+    return Note(kind, start, release, end, midi, seed=seed, **kw)
 
 
 def chord_pitch_classes(key: int, scale: list[int], degree: int, size: int) -> list[int]:
@@ -260,12 +281,11 @@ def compose(S: dict, rng_harmony, rng_bells):
         pcs = chord_pitch_classes(key, scale, degree, S["harmony.chord_notes"])
         chords.append((t, end, key, pcs))
 
-        for m in voice_chord(pcs, S["pad.octave"], S["pad.open_voicing"]):
-            rand = tuple(rng_harmony.random(5))  # drawn even when muted so the piece doesn't change
-            if S["pad.enabled"]:
-                notes.append(Note("pad", t, end, end + S["pad.release"], m, vel=1 / math.sqrt(len(pcs)), rand=rand))
+        if S["pad.enabled"]:
+            for m in voice_chord(pcs, S["pad.octave"], S["pad.open_voicing"]):
+                notes.append(make_note("pad", t, end, end + S["pad.synth.release"], m, vel=1 / math.sqrt(len(pcs))))
         if S["bass.enabled"]:
-            notes.append(Note("bass", t, end, end + S["pad.release"], 12 * (S["bass.octave"] + 1) + pcs[0]))
+            notes.append(make_note("bass", t, end, end + S["bass.synth.release"], 12 * (S["bass.octave"] + 1) + pcs[0]))
 
         degree = (degree + int(rng_harmony.choice(moves, p=weights))) % len(scale)
         t = end
@@ -301,85 +321,19 @@ def compose_bells(S: dict, rng, chords, total: float) -> list[Note]:
             dist = np.abs(pool - prev)
             w = np.exp(-dist / 4) * np.where(in_chord, bias, 1 - bias) * np.where(dist == 0, 0.3, 1) + 1e-9
             m = int(rng.choice(pool, p=w / w.sum()))
-            notes.append(Note("bells", t, t, t + S["bells.decay"], m,
-                              vel=rng.uniform(0.4, 1.0), pan=rng.uniform(-0.7, 0.7)))
+            # a struck note is "held" for its decay time, then released
+            hold = t + S["bells.synth.decay"]
+            notes.append(make_note("bells", t, hold, hold + S["bells.synth.release"], m,
+                                   vel=rng.uniform(0.4, 1.0), pan=rng.uniform(-0.7, 0.7)))
             prev = m
         t += rng.exponential(gap)
     return notes
 
 
 # =============================================================================
-# 4. INSTRUMENTS -- each turns one Note into (left, right) samples.
-#    `age` is an array of seconds since the note started.
+# 4. INSTRUMENTS -- pad, bass and bells: synth.render() with each layer's
+#    patch (see synth.py). Air and reverb are effects, so they live here.
 # =============================================================================
-
-def envelope(age, attack: float, hold: float, release: float):
-    """Rise over `attack`, stay up until `hold`, fall over `release`.
-    Smoothstep curves so nothing clicks."""
-    up = np.clip(age / attack, 0, 1)
-    down = np.clip(1 - (age - hold) / release, 0, 1)
-    e = np.minimum(up, down)
-    return e * e * (3 - 2 * e)
-
-
-def pan_gains(pan: float):
-    """Equal-power panning: -1 = left, 0 = centre, +1 = right."""
-    a = (pan + 1) * math.pi / 4
-    return math.cos(a), math.sin(a)
-
-
-def wavetable(brightness: float, size: int = 4096):
-    """One cycle of a soft, saw-like wave: harmonic h at 1/h^p. A steep
-    roll-off (low brightness) sounds mellow; a shallow one sounds buzzy."""
-    power = 2.5 - 2 * brightness
-    phase = np.arange(size) / size
-    wave = sum(np.sin(TAU * h * phase) / h ** power for h in range(1, 13))
-    return wave / np.abs(wave).max()
-
-
-class Instruments:
-    def __init__(self, S: dict):
-        self.S = S
-        self.table = wavetable(S["pad.brightness"])
-
-    def play(self, note: Note, age):
-        return getattr(self, note.kind)(note, age)
-
-    def pad(self, n: Note, age):
-        S = self.S
-        env = envelope(age, S["pad.attack"], n.release - n.start, S["pad.release"])
-        # each note "breathes" +-20 % on its own 6-16 s cycle
-        env = env * (1 + 0.2 * np.sin(TAU * age / (6 + 10 * n.rand[0]) + TAU * n.rand[1]))
-        hz = midi_to_hz(n.midi)
-        left = right = 0.0
-        for i, spread in enumerate((-1, 0, 1)):  # three slightly detuned voices
-            f = hz * 2 ** (spread * S["pad.detune_cents"] / 1200)
-            phase = (f * age + n.rand[2 + i]) % 1.0
-            wave = self.table[(phase * len(self.table)).astype(np.int64) & (len(self.table) - 1)]
-            gl, gr = pan_gains(spread * S["pad.width"])
-            left = left + wave * gl
-            right = right + wave * gr
-        g = env * n.vel / 3
-        return left * g, right * g
-
-    def bass(self, n: Note, age):
-        S = self.S
-        env = envelope(age, S["pad.attack"], n.release - n.start, S["pad.release"])
-        w = TAU * midi_to_hz(n.midi) * age
-        s = (np.sin(w) + 0.2 * np.sin(2 * w)) * env * 0.7
-        return s, s
-
-    def bells(self, n: Note, age):
-        """Two-operator FM: a sine whose phase is wobbled by another sine at
-        `tone_ratio` times the pitch. Non-whole ratios give bell-like overtones."""
-        S = self.S
-        decay = S["bells.decay"]
-        amp = n.vel * (1 - np.exp(-age / 0.004)) * np.exp(-6.9 * age / decay)  # 6.9 = -60 dB at `decay`
-        index = S["bells.brightness"] * np.exp(-6.9 * age / (0.4 * decay))   # shimmer fades first
-        f = midi_to_hz(n.midi)
-        s = amp * np.sin(TAU * f * age + index * np.sin(TAU * f * S["bells.tone_ratio"] * age))
-        gl, gr = pan_gains(n.pan)
-        return s * gl, s * gr
 
 
 class Air:
@@ -441,7 +395,8 @@ def render(S: dict, notes: list[Note], out_path: Path, rngs) -> dict:
     block = BLOCK_SECONDS * sr
     n_blocks = math.ceil(total_samples / block)
 
-    instruments = Instruments(S)
+    # each synth layer's settings: {"saw": 1.0, "cutoff_hz": 750.0, ...}
+    patches = {layer: {p["name"]: S[f"{layer}.synth.{p['name']}"] for p in synth.PARAMS} for layer in LAYER_PATCHES}
     air = Air(S, sr, rngs["air"]) if S["air.enabled"] else None
     reverb = Reverb(S, sr, rngs["reverb"])
     lowpass = signal.butter(2, min(S["master.lowpass_hz"], 0.45 * sr), fs=sr, output="sos")
@@ -464,7 +419,7 @@ def render(S: dict, notes: list[Note], out_path: Path, rngs) -> dict:
             while next_note < len(notes) and notes[next_note].start < t1:
                 active.append(notes[next_note])
                 next_note += 1
-            active = [x for x in active if x.end > t0]
+            active = [x for x in active if x.end > t0]  # finished notes (and their synth state) are dropped
 
             dry = np.zeros((2, n))
             send = np.zeros((2, n))
@@ -473,7 +428,7 @@ def render(S: dict, notes: list[Note], out_path: Path, rngs) -> dict:
                 i1 = min(n, math.ceil((note.end - t0) * sr))
                 if i1 <= i0:
                     continue
-                left, right = instruments.play(note, t[i0:i1] - note.start)
+                left, right = synth.render(note, t[i0:i1] - note.start, patches[note.kind], sr)
                 level, rsend = S[f"{note.kind}.level"], S[f"{note.kind}.reverb_send"]
                 dry[0, i0:i1] += left * level
                 dry[1, i0:i1] += right * level
@@ -533,11 +488,20 @@ def main(argv=None) -> int:
                    help="override one setting, e.g. --set pad.brightness=0.2 (repeatable)")
     p.add_argument("--out", help="output WAV path (default: renders/ambient_<preset>_<seed>.wav)")
     p.add_argument("--list-params", action="store_true", help="print every knob as JSON and exit")
+    p.add_argument("--list-patches", action="store_true", help="print every synth patch as JSON and exit")
+    p.add_argument("--list-presets", action="store_true", help="print every preset in presets/ as JSON and exit")
     p.add_argument("--progress-json", action="store_true", help="print @@progress events for a front end")
     args = p.parse_args(argv)
 
     if args.list_params:
         print(json.dumps([{**k, "type": type(k["default"]).__name__} for k in KNOBS], indent=2))
+        return 0
+    if args.list_presets:
+        presets = sorted(Path(__file__).parent.glob("presets/*.json"))
+        print(json.dumps([{"name": f.stem, "path": str(f), "settings": json.loads(f.read_text())} for f in presets], indent=2))
+        return 0
+    if args.list_patches:
+        print(json.dumps(synth.patch_info(), indent=2))
         return 0
     if args.progress_json:
         ambient_io.enable_progress()

@@ -1,0 +1,21 @@
+{
+  "description": "Triangle + sub under a resonant lowpass that sweeps slowly: deep and submerged",
+  "triangle": 1.0,
+  "sine": 0.0,
+  "sub": 0.6,
+  "unison": 2,
+  "detune_cents": 10,
+  "width": 0.6,
+  "filter": "lowpass",
+  "cutoff_hz": 350,
+  "resonance": 0.55,
+  "key_track": 0.3,
+  "filter_lfo_hz": 0.025,
+  "filter_lfo_octaves": 1.4,
+  "attack": 10,
+  "sustain": 1.0,
+  "release": 14,
+  "breath_hz": 0.05,
+  "breath_depth": 0.2,
+  "gain_db": -3.5
+}

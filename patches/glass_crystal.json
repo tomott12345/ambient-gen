@@ -1,0 +1,11 @@
+{
+  "description": "High-ratio FM: glassy, crystalline, long ring",
+  "sine": 1.0,
+  "fm_ratio": 7.0,
+  "fm_index": 2.5,
+  "fm_index_decay": 1.2,
+  "attack": 0.003,
+  "decay": 7,
+  "sustain": 0.0,
+  "release": 0.5
+}

@@ -1,0 +1,11 @@
+{
+  "description": "Two-operator FM bell, 3.5 ratio, shimmer fades before the tone (the original bells)",
+  "sine": 1.0,
+  "fm_ratio": 3.5,
+  "fm_index": 1.5,
+  "fm_index_decay": 2.4,
+  "attack": 0.004,
+  "decay": 6,
+  "sustain": 0.0,
+  "release": 0.3
+}

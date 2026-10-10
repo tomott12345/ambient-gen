@@ -1,0 +1,40 @@
+{
+  "harmony": {
+    "key": "F",
+    "scale": "minor",
+    "chord_notes": 4,
+    "chord_seconds_min": 25,
+    "chord_seconds_max": 50,
+    "modulate_minutes": 0
+  },
+  "pad": {
+    "patch": "soft_pad",
+    "level": 0.4,
+    "synth": {
+      "cutoff_hz": 500
+    }
+  },
+  "bass": {
+    "level": 0.2
+  },
+  "bells": {
+    "patch": "felt_piano",
+    "per_minute": 4,
+    "octave": 5,
+    "level": 0.3
+  },
+  "air": {
+    "level": 0.13,
+    "cutoff_hz": 4500,
+    "swell_seconds": 12,
+    "reverb_send": 0.2
+  },
+  "reverb": {
+    "seconds": 3,
+    "damping": 0.6,
+    "level": 0.45
+  },
+  "master": {
+    "lowpass_hz": 9000
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "description": "Warm detuned saw through a gentle lowpass, slow swell (the original pad)",
+  "saw": 1.0,
+  "sine": 0.0,
+  "unison": 3,
+  "detune_cents": 16,
+  "width": 0.8,
+  "filter": "lowpass",
+  "cutoff_hz": 750,
+  "resonance": 0.05,
+  "key_track": 1.0,
+  "attack": 8,
+  "sustain": 1.0,
+  "release": 10,
+  "breath_hz": 0.09,
+  "breath_depth": 0.2
+}

@@ -1,0 +1,47 @@
+{
+  "harmony": {
+    "key": "D",
+    "scale": "major_pentatonic",
+    "chord_notes": 3,
+    "chord_seconds_min": 90,
+    "chord_seconds_max": 200,
+    "modulate_minutes": 0
+  },
+  "pad": {
+    "patch": "warm_strings",
+    "level": 0.45,
+    "synth": {
+      "cutoff_hz": 600,
+      "attack": 20,
+      "release": 25
+    }
+  },
+  "bass": {
+    "level": 0.2,
+    "synth": {
+      "attack": 20,
+      "release": 25
+    }
+  },
+  "bells": {
+    "patch": "felt_piano",
+    "per_minute": 1,
+    "octave": 5,
+    "level": 0.22
+  },
+  "air": {
+    "level": 0.04,
+    "cutoff_hz": 1000,
+    "swell_seconds": 180
+  },
+  "reverb": {
+    "seconds": 10,
+    "damping": 0.7
+  },
+  "master": {
+    "gain_db": -1.5,
+    "lowpass_hz": 6000,
+    "fade_in": 120,
+    "fade_out": 120
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "description": "Sine with a touch of triangle: felt more than heard (the original bass)",
+  "sine": 1.0,
+  "triangle": 0.25,
+  "attack": 8,
+  "sustain": 1.0,
+  "release": 10
+}

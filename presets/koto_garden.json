@@ -1,0 +1,37 @@
+{
+  "harmony": {
+    "key": "E",
+    "scale": "hirajoshi",
+    "chord_notes": 3,
+    "chord_seconds_min": 30,
+    "chord_seconds_max": 60,
+    "modulate_minutes": 0
+  },
+  "pad": {
+    "patch": "soft_pad",
+    "level": 0.28,
+    "synth": {
+      "cutoff_hz": 600
+    }
+  },
+  "bass": {
+    "enabled": false
+  },
+  "bells": {
+    "patch": "koto_pluck",
+    "per_minute": 10,
+    "octave": 4,
+    "chord_bias": 0.5,
+    "level": 0.4,
+    "reverb_send": 0.5
+  },
+  "air": {
+    "level": 0.03,
+    "cutoff_hz": 3000
+  },
+  "reverb": {
+    "seconds": 5,
+    "damping": 0.5,
+    "level": 0.5
+  }
+}

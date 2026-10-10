@@ -1,0 +1,19 @@
+{
+  "description": "Square + sine + sub drawbar organ, steady and sacred",
+  "square": 0.5,
+  "sine": 0.8,
+  "sub": 0.5,
+  "unison": 2,
+  "detune_cents": 4,
+  "width": 0.5,
+  "vibrato_hz": 5.5,
+  "vibrato_cents": 4,
+  "filter": "lowpass",
+  "cutoff_hz": 3500,
+  "resonance": 0.0,
+  "key_track": 0.4,
+  "attack": 2.5,
+  "sustain": 1.0,
+  "release": 5,
+  "gain_db": -6.5
+}

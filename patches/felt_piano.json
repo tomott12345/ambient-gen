@@ -1,0 +1,15 @@
+{
+  "description": "Soft FM electric piano with the hammers wrapped in felt",
+  "sine": 1.0,
+  "fm_ratio": 1.0,
+  "fm_index": 0.8,
+  "fm_index_decay": 1.5,
+  "filter": "lowpass",
+  "cutoff_hz": 1500,
+  "key_track": 0.8,
+  "attack": 0.008,
+  "decay": 4,
+  "sustain": 0.0,
+  "release": 0.5,
+  "gain_db": 2.5
+}

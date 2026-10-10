@@ -1,0 +1,13 @@
+{
+  "description": "Low inharmonic FM bell (ratio 1.41) with a long, slow hum",
+  "sine": 1.0,
+  "fm_ratio": 1.41,
+  "fm_index": 3.0,
+  "fm_index_decay": 4.0,
+  "sub": 0.15,
+  "attack": 0.003,
+  "decay": 12,
+  "sustain": 0.0,
+  "release": 1.0,
+  "gain_db": -1.0
+}

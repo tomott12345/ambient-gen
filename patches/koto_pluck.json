@@ -1,0 +1,19 @@
+{
+  "description": "Plucked string: bright pulse snapping shut through a fast filter envelope",
+  "square": 0.6,
+  "pulse_width": 0.22,
+  "saw": 0.4,
+  "sine": 0.0,
+  "filter": "lowpass",
+  "cutoff_hz": 500,
+  "resonance": 0.3,
+  "key_track": 0.8,
+  "filter_env_octaves": 3.5,
+  "filter_attack": 0.002,
+  "filter_decay": 0.6,
+  "attack": 0.002,
+  "decay": 2.5,
+  "sustain": 0.0,
+  "release": 0.3,
+  "gain_db": 9.5
+}

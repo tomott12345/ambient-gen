@@ -1,11 +1,47 @@
 {
-  "harmony": { "key": "C#", "scale": "phrygian", "chord_notes": 3,
-               "chord_seconds_min": 60, "chord_seconds_max": 150, "modulate_minutes": 0 },
-  "pad":     { "brightness": 0.25, "octave": 2, "attack": 25, "release": 30, "detune_cents": 15,
-               "open_voicing": false, "level": 0.6 },
-  "bass":    { "octave": 1, "level": 0.3 },
-  "bells":   { "enabled": false },
-  "air":     { "level": 0.08, "cutoff_hz": 800, "swell_seconds": 120 },
-  "reverb":  { "seconds": 14, "damping": 0.8 },
-  "master":  { "lowpass_hz": 5000, "fade_in": 45, "fade_out": 90 }
+  "harmony": {
+    "key": "C#",
+    "scale": "phrygian",
+    "chord_notes": 3,
+    "chord_seconds_min": 60,
+    "chord_seconds_max": 150,
+    "modulate_minutes": 0
+  },
+  "pad": {
+    "patch": "soft_pad",
+    "octave": 2,
+    "open_voicing": false,
+    "level": 0.6,
+    "synth": {
+      "cutoff_hz": 500,
+      "attack": 25,
+      "release": 30,
+      "detune_cents": 30
+    }
+  },
+  "bass": {
+    "octave": 1,
+    "level": 0.3,
+    "synth": {
+      "attack": 25,
+      "release": 30
+    }
+  },
+  "bells": {
+    "enabled": false
+  },
+  "air": {
+    "level": 0.08,
+    "cutoff_hz": 800,
+    "swell_seconds": 120
+  },
+  "reverb": {
+    "seconds": 14,
+    "damping": 0.8
+  },
+  "master": {
+    "lowpass_hz": 5000,
+    "fade_in": 45,
+    "fade_out": 90
+  }
 }

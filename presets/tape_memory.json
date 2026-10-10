@@ -1,0 +1,41 @@
+{
+  "harmony": {
+    "key": "A#",
+    "scale": "major",
+    "chord_notes": 4,
+    "chord_seconds_min": 20,
+    "chord_seconds_max": 40,
+    "modulate_minutes": 0
+  },
+  "pad": {
+    "patch": "tape_strings",
+    "level": 0.5
+  },
+  "bass": {
+    "level": 0.22
+  },
+  "bells": {
+    "patch": "felt_piano",
+    "per_minute": 3,
+    "level": 0.25,
+    "synth": {
+      "drift_cents": 10,
+      "vibrato_hz": 0.4,
+      "vibrato_cents": 6
+    }
+  },
+  "air": {
+    "level": 0.06,
+    "cutoff_hz": 7000,
+    "swell_seconds": 300,
+    "reverb_send": 0.1
+  },
+  "reverb": {
+    "seconds": 5,
+    "damping": 0.6,
+    "level": 0.5
+  },
+  "master": {
+    "lowpass_hz": 6000
+  }
+}
