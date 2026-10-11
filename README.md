@@ -102,6 +102,7 @@ which patches play, and how big the room is. Presets live in `presets/`.
 | `aurora` | B lydian | Wide and shimmering: lydian pad, glass bells, 15 s reverb | pad: `shimmer_pad`, bass: `round_bass`, bells: `glass_crystal`, air |
 | `lofi_trap` | F dorian | Beat: 76 BPM, worn e-piano chords, 808 slides, hi-hat rolls, vinyl, sampler grit | pad: `lofi_keys`, bass: `sub_808`, bells: `felt_piano`, drums: `kick_punch`, `snare_lofi`, `hat_closed`, vinyl |
 | `lofi_chill` | D minor | Beat: 70 BPM, swung and laid back, tape strings, soft kick, no rolls, more vinyl | pad: `tape_strings`, bass: `sub_808`, bells: `lofi_keys`, drums: `kick_soft`, `snare_lofi`, `hat_closed`, vinyl |
+| `lofi_trap_ensemble` | D# dorian | Beat: lofi_trap in D# dorian with strings, soft piano and a flute lead | pad: `warm_strings`, bass: `sub_808`, bells: `soft_piano`, lead: `flute`, drums: `kick_punch`, `snare_lofi`, `hat_closed`, vinyl |
 
 ```bash
 python3 ambient.py --preset presets/aurora.json --minutes 20
@@ -147,6 +148,17 @@ cheap: hours of music come to a few thousand note events.
   bells come and go in waves. Each new pitch is chosen near the previous one,
   favouring chord notes (`bells.chord_bias`) and avoiding repeats. That
   produces a meandering melody rather than random plinks.
+- **Lead** (optional, `lead.enabled`). A second melody with the same pitch
+  logic, but its notes are *held* for `lead.note_beats` beats and each one
+  lets go when the next begins, like a single player phrasing. It is made
+  for sustained instruments such as `flute` or strings, so a piece can mix
+  chords, a struck melody and a held lead. `lofi_trap_ensemble` uses
+  strings (pad), piano (bells) and flute (lead):
+
+  ```bash
+  python3 ambient.py --preset presets/lofi_trap_ensemble.json --minutes 30
+  python3 ambient.py --preset presets/night.json --set lead.enabled=true --set lead.per_minute=6
+  ```
 
 ### 2. Rendering
 
@@ -216,7 +228,7 @@ python3 ambient.py --preset presets/night.json --set groove.enabled=true     # p
   kick, plays the chord root (sometimes the octave or the 5th), holds until
   the next hit, and slides into new pitches (`groove.slide_chance`). Use it
   with the `sub_808` patch.
-- **Melody.** The `bells` layer is quantized to 8th notes.
+- **Melody.** The `bells` and `lead` layers are quantized to 8th notes.
 - **Sidechain pump.** The pad, 808 and melody dip by `groove.duck_depth` on
   every kick and recover over `groove.duck_release` seconds.
 
@@ -244,7 +256,7 @@ python3 ambient.py --preset presets/lofi_trap.json \
 ## The synth engine
 
 `synth.py` is one subtractive/FM synth that plays the **pad**, **bass**,
-**bells**, **kick**, **snare** and **hats** layers. Each layer picks a patch, and you can tweak any
+**bells**, **lead**, **kick**, **snare** and **hats** layers. Each layer picks a patch, and you can tweak any
 setting of that patch per layer.
 
 Signal flow for one note:
@@ -333,6 +345,8 @@ leaves out takes the engine's default.
 | `glass_crystal` | bells | High-ratio FM: glassy, crystalline, long ring |
 | `hollow_drop` | bells | Hollow FM tone (ratio 2) through a bandpass: like a drop in a cave |
 | `koto_pluck` | bells | Plucked string: bright pulse snapping shut through a fast filter envelope |
+| `soft_piano` | bells | Soft acoustic-style piano: bright hammer attack that mellows, paired strings |
+| `flute` | lead | Breathy flute: triangle and sine with air noise, vibrato and a soft attack chiff |
 | `kick_punch` | kick | Tight trap kick: fast deep pitch drop, a little drive, short tail |
 | `kick_soft` | kick | Round, soft kick: a sine that drops two octaves, with a gentle click |
 | `snare_lofi` | snare | Dusty snare: a short tone body under filtered noise |
@@ -371,8 +385,8 @@ Every setting has a dotted path:
 | `groove.*` | `groove.bpm=82` | Tempo, loops, sections and drum behaviour |
 | `air.*`, `vinyl.*`, `reverb.*`, `master.*` | `reverb.seconds=15` | Effects and output |
 
-The layers are `pad`, `bass`, `bells`, and (with the groove on) `kick`,
-`snare` and `hats`. Values are type- and range-checked:
+The layers are `pad`, `bass`, `bells`, `lead` (off by default), and (with
+the groove on) `kick`, `snare` and `hats`. Values are type- and range-checked:
 `--set pad.level=2` stops with `pad.level: 2.0 is outside 0..1`.
 
 Some recipes:
@@ -468,8 +482,8 @@ python3 ambient.py --minutes 1.5 --set pad.patch=my_patch \
   python3 ambient.py --preset renders/ambient_tape_memory_1433086701.json
   ```
 
-- The randomness is split into independent streams (harmony, bells, drums,
-  vinyl, air, reverb, dither). Changing the air or reverb settings doesn't change the
+- The randomness is split into independent streams (harmony, bells, lead,
+  drums, vinyl, air, reverb, dither). Changing the air or reverb settings doesn't change the
   notes; turning a layer off doesn't change what the others play.
 
 ---
@@ -583,6 +597,13 @@ Synth settings (`<layer>.synth.*`) are listed in the next section.
 | `bells.octave` | 5 | 3 – 7 | Register: 5 sits around C5-G6 |
 | `bells.chord_bias` | 0.7 | 0 – 1 | Chance of picking a chord note over any scale note |
 | `bells.reverb_send` | 0.8 | 0 – 1 | How much bell goes into the reverb |
+| `lead.enabled` | false | true / false | Play the lead melody |
+| `lead.level` | 0.3 | 0 – 1 | Lead volume |
+| `lead.per_minute` | 10 | 0 – 60 | Notes per minute at their busiest |
+| `lead.octave` | 5 | 3 – 7 | Register: 5 sits around C5-G6 |
+| `lead.note_beats` | 1.5 | 0.25 – 8 | How long each note is held, in beats at groove.bpm (cut short by the next note) |
+| `lead.chord_bias` | 0.75 | 0 – 1 | Chance of picking a chord note over any scale note |
+| `lead.reverb_send` | 0.5 | 0 – 1 | How much lead goes into the reverb |
 | `groove.enabled` | false | true / false | Turn on the beat: tempo, bar-aligned chord loops, drums, 808 |
 | `groove.bpm` | 78 | 50 – 180 | Tempo. With the snare on beat 3, 70-90 BPM feels like lo-fi/trap half-time |
 | `groove.swing` | 0.12 | 0 – 0.6 | Delay of every off-beat 16th, as a fraction of a 16th |
@@ -633,6 +654,7 @@ Synth settings (`<layer>.synth.*`) are listed in the next section.
 | `pad.patch` | soft_pad | see `--list-params` | Synth patch (patches/*.json); it fills in pad.synth.* |
 | `bass.patch` | round_bass | see `--list-params` | Synth patch (patches/*.json); it fills in bass.synth.* |
 | `bells.patch` | fm_bell | see `--list-params` | Synth patch (patches/*.json); it fills in bells.synth.* |
+| `lead.patch` | flute | see `--list-params` | Synth patch (patches/*.json); it fills in lead.synth.* |
 | `kick.patch` | kick_soft | see `--list-params` | Synth patch (patches/*.json); it fills in kick.synth.* |
 | `snare.patch` | snare_lofi | see `--list-params` | Synth patch (patches/*.json); it fills in snare.synth.* |
 | `hats.patch` | hat_closed | see `--list-params` | Synth patch (patches/*.json); it fills in hats.synth.* |

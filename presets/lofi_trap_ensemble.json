@@ -1,0 +1,92 @@
+{
+  "harmony": {
+    "key": "D#",
+    "scale": "dorian",
+    "chord_notes": 4,
+    "modulate_minutes": 0
+  },
+  "groove": {
+    "enabled": true,
+    "bpm": 76,
+    "swing": 0.1,
+    "bars_per_chord": 2,
+    "loop_chords": 4,
+    "loop_repeats": 4,
+    "section_bars": 8,
+    "breakdown_chance": 0.2,
+    "kick_density": 1.0,
+    "hat_rolls": 0.4,
+    "slide_chance": 0.35,
+    "humanize_ms": 6,
+    "duck_depth": 0.4,
+    "duck_release": 0.28
+  },
+  "pad": {
+    "patch": "warm_strings",
+    "octave": 3,
+    "level": 0.22,
+    "restrike_beats": 0,
+    "reverb_send": 0.45,
+    "synth": {
+      "attack": 1.8,
+      "release": 3.5,
+      "cutoff_hz": 1100
+    }
+  },
+  "bass": {
+    "patch": "sub_808",
+    "octave": 1,
+    "level": 0.5,
+    "reverb_send": 0.0
+  },
+  "bells": {
+    "patch": "soft_piano",
+    "octave": 4,
+    "per_minute": 10,
+    "chord_bias": 0.8,
+    "level": 0.33,
+    "reverb_send": 0.4
+  },
+  "kick": {
+    "patch": "kick_punch"
+  },
+  "snare": {
+    "patch": "snare_lofi"
+  },
+  "hats": {
+    "patch": "hat_closed"
+  },
+  "air": {
+    "enabled": false
+  },
+  "vinyl": {
+    "enabled": true,
+    "level": 0.5,
+    "hiss": 0.35,
+    "crackle_per_second": 6
+  },
+  "reverb": {
+    "seconds": 2.5,
+    "damping": 0.6,
+    "level": 0.4
+  },
+  "master": {
+    "gain_db": 0.0,
+    "lowpass_hz": 8500,
+    "saturation": 0.3,
+    "bitcrush_bits": 12,
+    "downsample_hz": 26000,
+    "fade_in": 4,
+    "fade_out": 12
+  },
+  "lead": {
+    "enabled": true,
+    "patch": "flute",
+    "octave": 5,
+    "per_minute": 24,
+    "note_beats": 1.5,
+    "chord_bias": 0.75,
+    "level": 0.3,
+    "reverb_send": 0.5
+  }
+}

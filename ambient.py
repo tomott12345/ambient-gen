@@ -120,6 +120,15 @@ KNOBS = [
     K("bells.chord_bias", 0.7, "Chance of picking a chord note over any scale note", 0, 1),
     K("bells.reverb_send", 0.8, "How much bell goes into the reverb", 0, 1),
 
+    # lead: a second melody of held notes in phrases (flute, strings...), off by default
+    K("lead.enabled", False, "Play the lead melody"),
+    K("lead.level", 0.3, "Lead volume", 0, 1),
+    K("lead.per_minute", 10.0, "Notes per minute at their busiest", 0, 60),
+    K("lead.octave", 5, "Register: 5 sits around C5-G6", 3, 7),
+    K("lead.note_beats", 1.5, "How long each note is held, in beats at groove.bpm (cut short by the next note)", 0.25, 8),
+    K("lead.chord_bias", 0.75, "Chance of picking a chord note over any scale note", 0, 1),
+    K("lead.reverb_send", 0.5, "How much lead goes into the reverb", 0, 1),
+
     # groove: tempo, beat grid and drums (off = pure ambient, as before)
     K("groove.enabled", False, "Turn on the beat: tempo, bar-aligned chord loops, drums, 808"),
     K("groove.bpm", 78.0, "Tempo. With the snare on beat 3, 70-90 BPM feels like lo-fi/trap half-time", 50, 180),
@@ -183,7 +192,7 @@ KNOBS = [
 # Each synth-played layer picks a patch, and every synth setting can also be
 # overridden per layer: pad.synth.cutoff_hz, bells.synth.decay, ...
 # The knob defaults come from the layer's default patch.
-LAYER_PATCHES = {"pad": "soft_pad", "bass": "round_bass", "bells": "fm_bell",
+LAYER_PATCHES = {"pad": "soft_pad", "bass": "round_bass", "bells": "fm_bell", "lead": "flute",
                  "kick": "kick_soft", "snare": "snare_lofi", "hats": "hat_closed"}
 DRUMS = ("kick", "snare", "hats")
 
@@ -305,9 +314,9 @@ def voice_chord(pcs: list[int], octave: int, open_voicing: bool) -> list[int]:
     return notes
 
 
-def compose(S: dict, rng_harmony, rng_bells, rng_drums):
+def compose(S: dict, rng_harmony, rng_bells, rng_drums, rng_lead=None):
     if S["groove.enabled"]:
-        return compose_groove(S, rng_harmony, rng_bells, rng_drums)
+        return compose_groove(S, rng_harmony, rng_bells, rng_drums, rng_lead)
     total = S["minutes"] * 60
     scale = SCALES[S["harmony.scale"]]
     key = NOTE_NAMES.index(S["harmony.key"])
@@ -338,12 +347,14 @@ def compose(S: dict, rng_harmony, rng_bells, rng_drums):
         t = end
 
     if S["bells.enabled"] and S["bells.per_minute"] > 0:
-        notes += compose_bells(S, rng_bells, chords, total)
+        notes += compose_melody(S, "bells", rng_bells, chords, total)
+    if S["lead.enabled"] and S["lead.per_minute"] > 0:
+        notes += compose_melody(S, "lead", rng_lead, chords, total)
     notes.sort(key=lambda n: n.start)
     return notes, chords
 
 
-def compose_groove(S: dict, rng_harmony, rng_bells, rng_drums):
+def compose_groove(S: dict, rng_harmony, rng_bells, rng_drums, rng_lead=None):
     """The beat version of compose(): chords loop on bar lines, sections
     switch between no drums, a beat, and a full beat, and drums, 808 and a
     quantized melody are written on top (see groove.py)."""
@@ -404,26 +415,34 @@ def compose_groove(S: dict, rng_harmony, rng_bells, rng_drums):
             notes.append(make_note("bass", t, until, until + S["bass.synth.release"], midi, glide_from=glide))
 
     if S["bells.enabled"] and S["bells.per_minute"] > 0:
-        notes += compose_bells(S, rng_bells, chords, total, grid=grid)
+        notes += compose_melody(S, "bells", rng_bells, chords, total, grid=grid)
+    if S["lead.enabled"] and S["lead.per_minute"] > 0:
+        notes += compose_melody(S, "lead", rng_lead, chords, total, grid=grid)
     notes.sort(key=lambda n: n.start)
     return notes, chords
 
 
-def compose_bells(S: dict, rng, chords, total: float, grid=None) -> list[Note]:
-    """Random (Poisson) timing, thinned by a slowly wandering density, so bells
-    come in waves. Each pitch is a short step from the last one, favouring
-    chord notes. That makes a meandering melody instead of random plinks."""
+def compose_melody(S: dict, layer: str, rng, chords, total: float, grid=None) -> list[Note]:
+    """A melody for the bells or lead layer. Random (Poisson) timing, thinned
+    by a slowly wandering density, so notes come in waves. Each pitch is a
+    short step from the last one, favouring chord notes. That makes a
+    meandering melody instead of random plinks.
+
+    Bells are struck: each note rings for its patch's decay. Lead notes are
+    held for lead.note_beats and one note ends where the next begins, like a
+    single player phrasing (legato)."""
     scale = SCALES[S["harmony.scale"]]
-    lo = 12 * (S["bells.octave"] + 1)
+    lo = 12 * (S[f"{layer}.octave"] + 1)
     hi = lo + 19
-    bias = S["bells.chord_bias"]
+    bias = S[f"{layer}.chord_bias"]
+    lead = layer == "lead"
 
     density = [0.5]  # one value per 30 s, bounded random walk 0.1..1
     for _ in range(int(total // 30) + 1):
         density.append(float(np.clip(density[-1] + rng.normal(0, 0.25), 0.1, 1.0)))
 
     chord_starts = [c[0] for c in chords]
-    gap = 60 / S["bells.per_minute"]
+    gap = 60 / S[f"{layer}.per_minute"]
     notes, prev, last = [], (lo + hi) / 2, -1.0
     t = rng.exponential(gap)
     while t < total:
@@ -437,12 +456,22 @@ def compose_bells(S: dict, rng, chords, total: float, grid=None) -> list[Note]:
             dist = np.abs(pool - prev)
             w = np.exp(-dist / 4) * np.where(in_chord, bias, 1 - bias) * np.where(dist == 0, 0.3, 1) + 1e-9
             m = int(rng.choice(pool, p=w / w.sum()))
-            # a struck note is "held" for its decay time, then released
-            hold = when + S["bells.synth.decay"]
-            notes.append(make_note("bells", when, hold, hold + S["bells.synth.release"], m,
-                                   vel=rng.uniform(0.4, 1.0), pan=rng.uniform(-0.7, 0.7)))
+            if lead:
+                hold = when + S["lead.note_beats"] * 60 / S["groove.bpm"]
+                notes.append(make_note("lead", when, hold, hold + S["lead.synth.release"], m,
+                                       vel=rng.uniform(0.6, 1.0), pan=rng.uniform(-0.15, 0.15)))
+            else:
+                # a struck note is "held" for its decay time, then released
+                hold = when + S["bells.synth.decay"]
+                notes.append(make_note("bells", when, hold, hold + S["bells.synth.release"], m,
+                                       vel=rng.uniform(0.4, 1.0), pan=rng.uniform(-0.7, 0.7)))
             prev, last = m, when
         t += rng.exponential(gap)
+    if lead:  # one player: each note lets go when the next one starts
+        for a, b in zip(notes, notes[1:]):
+            if a.release > b.start:
+                a.release = b.start
+                a.end = b.start + S["lead.synth.release"]
     return notes
 
 
@@ -656,19 +685,20 @@ def main(argv=None) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
 
     # independent random streams, so e.g. changing the air layer doesn't change the melody
-    streams = np.random.SeedSequence(S["seed"]).spawn(7)
-    rngs = dict(zip(["harmony", "bells", "air", "reverb", "dither", "drums", "vinyl"],
+    streams = np.random.SeedSequence(S["seed"]).spawn(8)
+    rngs = dict(zip(["harmony", "bells", "air", "reverb", "dither", "drums", "vinyl", "lead"],
                     map(np.random.default_rng, streams)))
 
     ambient_io.emit("plan", steps=[{"step": "compose", "label": "Composing"},
                                    {"step": "render", "label": "Rendering audio"}])
     with ambient_io.step("compose", "Composing"):
-        notes, chords = compose(S, rngs["harmony"], rngs["bells"], rngs["drums"])
+        notes, chords = compose(S, rngs["harmony"], rngs["bells"], rngs["drums"], rngs["lead"])
     counts = {k: sum(n.kind == k for n in notes) for k in LAYER_PATCHES}
     beat = f"{S['groove.bpm']:g} BPM, " if S["groove.enabled"] else ""
     drums = f", {sum(counts[k] for k in DRUMS)} drum hits" if S["groove.enabled"] else ""
+    lead = f", {counts['lead']} lead notes" if S["lead.enabled"] else ""
     print(f"{S['minutes']:g} min of {S['harmony.key']} {S['harmony.scale']}, {beat}seed {S['seed']}: "
-          f"{len(chords)} chords, {counts['bells']} bell notes{drums} -> {out}", file=sys.stderr)
+          f"{len(chords)} chords, {counts['bells']} bell notes{lead}{drums} -> {out}", file=sys.stderr)
 
     with ambient_io.step("render", "Rendering audio"):
         stats = render(S, notes, out, rngs)

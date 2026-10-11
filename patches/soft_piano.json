@@ -1,0 +1,22 @@
+{
+  "description": "Soft acoustic-style piano: bright hammer attack that mellows, paired strings",
+  "triangle": 0.35,
+  "sine": 1.0,
+  "fm_ratio": 2.0,
+  "fm_index": 0.6,
+  "fm_index_decay": 0.8,
+  "unison": 2,
+  "detune_cents": 4,
+  "width": 0.4,
+  "drift_cents": 2,
+  "filter": "lowpass",
+  "cutoff_hz": 900,
+  "key_track": 0.8,
+  "filter_env_octaves": 2.5,
+  "filter_attack": 0.002,
+  "filter_decay": 1.2,
+  "attack": 0.003,
+  "decay": 5.0,
+  "sustain": 0.0,
+  "release": 0.4
+}

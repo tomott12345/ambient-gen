@@ -1,0 +1,22 @@
+{
+  "description": "Breathy flute: triangle and sine with air noise, vibrato and a soft attack chiff",
+  "triangle": 0.6,
+  "sine": 0.6,
+  "noise": 0.12,
+  "drift_cents": 3,
+  "vibrato_hz": 5.0,
+  "vibrato_cents": 10,
+  "filter": "lowpass",
+  "cutoff_hz": 2800,
+  "resonance": 0.1,
+  "key_track": 0.7,
+  "filter_env_octaves": 0.6,
+  "filter_attack": 0.05,
+  "filter_decay": 0.4,
+  "attack": 0.08,
+  "decay": 0.5,
+  "sustain": 0.85,
+  "release": 0.25,
+  "breath_hz": 0.5,
+  "breath_depth": 0.06
+}
