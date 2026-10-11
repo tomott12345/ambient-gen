@@ -2,8 +2,9 @@
 
 Generative ambient music in Python, rendered straight to WAV files of any
 length, from a 2-minute sketch to an 8-hour sleep track. Turn on the groove
-and it also makes lo-fi / trap beats: drums, 808 slides, hi-hat rolls, vinyl
-crackle.
+and it also makes lo-fi / trap beats (drums, 808 slides, hi-hat rolls, vinyl
+crackle) or long-form techno for hour-long jams (four-on-the-floor, acid
+lines, builds and drops).
 
 Every run composes a new piece: chords drift through a scale, melodies
 wander, the filters breathe. Every piece can be reproduced exactly from its
@@ -24,6 +25,7 @@ python3 ambient.py --preset presets/dark_ambient.json --minutes 6
 - [Presets](#presets)
 - [How it works](#how-it-works)
 - [Beats: the groove mode](#beats-the-groove-mode)
+- [Techno: long tracks and jams](#techno-long-tracks-and-jams)
 - [The synth engine](#the-synth-engine)
 - [Patches](#patches)
 - [Changing settings](#changing-settings)
@@ -103,6 +105,8 @@ which patches play, and how big the room is. Presets live in `presets/`.
 | `lofi_trap` | F dorian | Beat: 76 BPM, worn e-piano chords, 808 slides, hi-hat rolls, vinyl, sampler grit | pad: `lofi_keys`, bass: `sub_808`, bells: `felt_piano`, drums: `kick_punch`, `snare_lofi`, `hat_closed`, vinyl |
 | `lofi_chill` | D minor | Beat: 70 BPM, swung and laid back, tape strings, soft kick, no rolls, more vinyl | pad: `tape_strings`, bass: `sub_808`, bells: `lofi_keys`, drums: `kick_soft`, `snare_lofi`, `hat_closed`, vinyl |
 | `lofi_trap_ensemble` | D# dorian | Beat: lofi_trap in D# dorian with strings, soft piano and a flute lead | pad: `warm_strings`, bass: `sub_808`, bells: `soft_piano`, lead: `flute`, drums: `kick_punch`, `snare_lofi`, `hat_closed`, vinyl |
+| `techno` | A minor | Techno: 130 BPM, 909 kit, acid line with drifting filter, offbeat/rolling bass, builds and drops | pad: `techno_pad`, bass: `techno_bass`, bells: `dub_stab`, lead: `acid_303`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909` |
+| `dub_techno` | F minor | Techno: 122 BPM, deep chord stabs into long reverb, offbeat bass, vinyl, no acid | pad: `techno_pad`, bass: `techno_bass`, bells: `dub_stab`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909`, air, vinyl |
 
 ```bash
 python3 ambient.py --preset presets/aurora.json --minutes 20
@@ -179,9 +183,11 @@ The timeline is rendered in 10-second blocks. For each block, the script:
 
 Memory use therefore stays flat however long the piece is. Everything that
 must carry over between blocks is kept and passed on: filter memory, reverb
-tail, voice phases, and noise position. As a result, the output is
-**bit-identical however the timeline is cut into blocks**, so there are no
-seams.
+tail, voice phases, and noise position, so there are no seams. The synth
+voices, drums, vinyl, sidechain and crusher all render **bit-identically
+however the timeline is cut into blocks**. The one exception is the `air`
+layer, whose noise is drawn in block-sized chunks. That doesn't affect
+reproducibility, because the block size is always the same 10 seconds.
 
 ---
 
@@ -241,6 +247,25 @@ python3 ambient.py --preset presets/lofi_trap.json \
   --set hats.synth.cutoff_hz=9000 --set hats.synth.decay=0.12
 ```
 
+**Drum kits.** `groove.kit` swaps all three drum patches at once:
+
+| Kit | Kick / snare / hats | Sound |
+|---|---|---|
+| `custom` (default) | each layer's own `.patch` | whatever the preset chose |
+| `lofi` | `kick_soft`, `snare_lofi`, `hat_closed` | soft and dusty |
+| `trap` | `kick_punch`, `snare_lofi`, `hat_closed` | tighter, punchier kick |
+| `909` | `kick_909`, `snare_909`, `hat_909` (+ `openhat_909`, `rim_909`) | TR-909 style: deep swept kick with a click, snappy two-tone snare, metallic hats |
+| `techno` | `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909` | The 909 kit with a clap instead of the snare, for techno |
+
+```bash
+python3 ambient.py --preset presets/lofi_trap.json --set groove.kit=909
+```
+
+A kit overrides the three drum patches (even ones a preset sets); set it
+back to `custom` to pick them one by one. Fine-tuning still works on top,
+for example `--set kick.synth.transpose=-2` for a lower 909 kick. The drum
+patterns stay lo-fi/trap whichever kit plays them.
+
 **Lo-fi texture** (works with or without the groove):
 
 | Setting | Effect |
@@ -250,6 +275,68 @@ python3 ambient.py --preset presets/lofi_trap.json \
 | `master.bitcrush_bits` | Bit reduction for sampler grit (12 is subtle, 8 is crunchy; 0 = off) |
 | `master.downsample_hz` | Sample-and-hold to a lower rate, like an old sampler (around 26000 is subtle; 0 = off) |
 | `master.lowpass_hz` | Darker top end; lo-fi usually sits at 6-9 kHz |
+
+---
+
+## Techno: long tracks and jams
+
+`groove.style=techno` swaps the lo-fi beat for a four-on-the-floor
+arrangement built to run for an hour or more without going stale. Two
+presets use it:
+
+```bash
+python3 ambient.py --preset presets/techno.json --minutes 60          # 130 BPM, acid line, A minor
+python3 ambient.py --preset presets/dub_techno.json --minutes 90      # 122 BPM, deep stabs, long reverb, no acid
+python3 ambient.py --preset presets/techno.json --set groove.bpm=138 --set techno.density=0.85   # harder, busier
+```
+
+**The elements**
+
+| Element | Layer | What it plays |
+|---|---|---|
+| Kick | `kick` | Four on the floor, dead on the grid (never humanized); now and then drops the last beat of a phrase |
+| Clap | `snare` | Beats 2 and 4, as three quick bursts like an analog clap (`techno.clap_flam_ms`) |
+| Closed hats | `hats` | 16ths with offbeat accents |
+| Open hat | `openhat` | Every offbeat (the "tss" between kicks); the closed hat steps aside for it |
+| Percussion | `perc` | A syncopated rimshot pattern, new each phrase, with its own stereo position |
+| Bass | `bass` | Offbeat or rolling 16ths on the chord root (`techno.bass_style`; `auto` changes per phrase) |
+| Acid | `lead` | A 303-style 16-step sequence with accents and slides, mutating a step at a time |
+| Stabs | `bells` | Short chord stabs on a syncopated rhythm, made for a long reverb |
+| Pad | `pad` | The chord, held, for atmosphere |
+
+**How a long track evolves**
+
+- **Phrases.** Every `techno.phrase_bars` bars (16 by default, about 30 s at
+  130 BPM), one element enters, leaves, or is swapped for another. The
+  number playing at once follows a slow random walk scaled by
+  `techno.density`. The backbone (hats, clap, bass) is the least likely to
+  be taken out; flourishes (stabs, perc, pad) come and go most.
+- **Intro and outro.** The first `techno.intro_bars` and last
+  `techno.outro_bars` bars are kick and hats only, so a track is easy to mix
+  in and out of.
+- **Breakdowns and drops.** With chance `techno.breakdown_chance` per phrase
+  (never in the first few minutes, and at least four phrases apart), a
+  phrase becomes a breakdown: kick, bass and beat stop, and the pad, acid
+  and stabs carry on. Its last two bars are a snare roll (8ths, then 16ths,
+  getting louder) into the drop, where the kick returns.
+- **Patterns breathe.** The perc, stab and acid patterns and the bass style
+  are made fresh each phrase and repeat bar by bar with small mutations:
+  hypnotic, but never an exact loop.
+- **The acid filter drifts.** The acid line's filter cutoff follows its own
+  slow random walk over minutes, up to `techno.acid_sweep_octaves` octaves
+  open or shut, and accented notes open it further. This is the "hand on
+  the cutoff knob" of a live jam.
+- **Harmony** moves slowly: with the presets' `groove.bars_per_chord=16`
+  and `loop_chords=2`, the chord changes every 16 bars and a new pair of
+  chords comes every 256 bars (about 8 minutes).
+
+Every part is a synth patch, so the whole kit is tunable:
+
+```bash
+python3 ambient.py --preset presets/techno.json \
+  --set lead.synth.resonance=0.9 --set lead.synth.drive=0.7 \
+  --set kick.synth.decay=0.8 --set techno.acid_slide=0.4
+```
 
 ---
 
@@ -335,9 +422,12 @@ leaves out takes the engine's default.
 | `soft_pad` | pad | Warm detuned saw through a gentle lowpass, slow swell (the original pad) |
 | `sub_swell` | pad | Triangle + sub under a resonant lowpass that sweeps slowly: deep and submerged |
 | `tape_strings` | pad | Warm strings played off worn tape: pitch wow, drift and a little hiss |
+| `techno_pad` | pad | Dark techno pad: wide detuned saw and triangle under a slowly sweeping resonant filter |
 | `warm_strings` | pad | Five-voice saw ensemble with a slowly breathing filter |
 | `lofi_keys` | pad (restruck) or bells | Worn electric piano for chords: FM tines, tape wow and a dark top |
+| `bass_guitar` | bass | Fingered electric bass: saw/pulse/sine body with a plucked filter thump that settles into a warm ring |
 | `round_bass` | bass | Sine with a touch of triangle: felt more than heard (the original bass) |
+| `techno_bass` | bass | Tight techno bass: saw, sine and sub with a short filter pluck |
 | `sub_808` | bass (808) | 808 bass: sine with a pitch-drop punch, saturated, long boom; slides between notes |
 | `church_bell` | bells | Low inharmonic FM bell (ratio 1.41) with a long, slow hum |
 | `felt_piano` | bells | Soft FM electric piano with the hammers wrapped in felt |
@@ -346,11 +436,19 @@ leaves out takes the engine's default.
 | `hollow_drop` | bells | Hollow FM tone (ratio 2) through a bandpass: like a drop in a cave |
 | `koto_pluck` | bells | Plucked string: bright pulse snapping shut through a fast filter envelope |
 | `soft_piano` | bells | Soft acoustic-style piano: bright hammer attack that mellows, paired strings |
+| `dub_stab` | bells (stabs) | Dub-techno chord stab: detuned saw and pulse, a quick filter blip, made for long reverb |
 | `flute` | lead | Breathy flute: triangle and sine with air noise, vibrato and a soft attack chiff |
+| `acid_303` | lead (acid) | 303-style acid: saw through a squelchy, resonant filter with a punchy envelope; slides |
+| `kick_909` | kick | TR-909 style kick: deep sine pitch sweep around 52 Hz with a sharp click and driven body |
 | `kick_punch` | kick | Tight trap kick: fast deep pitch drop, a little drive, short tail |
 | `kick_soft` | kick | Round, soft kick: a sine that drops two octaves, with a gentle click |
+| `snare_909` | snare | TR-909 style snare: two-tone body with a fast pitch drop under bright, snappy noise |
 | `snare_lofi` | snare | Dusty snare: a short tone body under filtered noise |
+| `clap_909` | snare (clap) | TR-909 style clap: band-passed noise bursts (the pattern plays three in a quick flam) |
+| `hat_909` | hats | TR-909 style closed hat: metallic FM partials and noise through a resonant highpass |
 | `hat_closed` | hats | Closed hi-hat: bright noise through a resonant highpass, very short |
+| `openhat_909` | openhat | TR-909 style open hat: the metallic closed hat, left to ring |
+| `rim_909` | perc | TR-909 style rimshot: a short, knocking click with a woody tone |
 
 Pick a patch per layer:
 
@@ -382,11 +480,13 @@ Every setting has a dotted path:
 | `<layer>.<setting>` | `bells.per_minute=2` | A layer's musical role: level, register, density, reverb send |
 | `<layer>.patch` | `pad.patch=organ` | Which synth patch a layer plays |
 | `<layer>.synth.<param>` | `pad.synth.resonance=0.7` | Tweak one synth setting of that layer's patch |
-| `groove.*` | `groove.bpm=82` | Tempo, loops, sections and drum behaviour |
+| `groove.*` | `groove.bpm=82` | Tempo, style (lofi/techno), kit, loops, sections and drum behaviour |
+| `techno.*` | `techno.density=0.8` | Techno arrangement: phrases, intro/outro, breakdowns, bass style, acid line |
 | `air.*`, `vinyl.*`, `reverb.*`, `master.*` | `reverb.seconds=15` | Effects and output |
 
 The layers are `pad`, `bass`, `bells`, `lead` (off by default), and (with
-the groove on) `kick`, `snare` and `hats`. Values are type- and range-checked:
+the groove on) `kick`, `snare` and `hats`, plus `openhat` and `perc` in
+techno style. Values are type- and range-checked:
 `--set pad.level=2` stops with `pad.level: 2.0 is outside 0..1`.
 
 Some recipes:
@@ -600,11 +700,13 @@ Synth settings (`<layer>.synth.*`) are listed in the next section.
 | `lead.enabled` | false | true / false | Play the lead melody |
 | `lead.level` | 0.3 | 0 – 1 | Lead volume |
 | `lead.per_minute` | 10 | 0 – 60 | Notes per minute at their busiest |
-| `lead.octave` | 5 | 3 – 7 | Register: 5 sits around C5-G6 |
+| `lead.octave` | 5 | 1 – 7 | Register: 5 sits around C5-G6 (an acid line sits at 2) |
 | `lead.note_beats` | 1.5 | 0.25 – 8 | How long each note is held, in beats at groove.bpm (cut short by the next note) |
 | `lead.chord_bias` | 0.75 | 0 – 1 | Chance of picking a chord note over any scale note |
 | `lead.reverb_send` | 0.5 | 0 – 1 | How much lead goes into the reverb |
 | `groove.enabled` | false | true / false | Turn on the beat: tempo, bar-aligned chord loops, drums, 808 |
+| `groove.style` | lofi | `lofi`, `techno` | Beat style: lofi (half-time, rolls, 808) or techno (four-on-the-floor, acid, long builds) |
+| `groove.kit` | custom | `custom`, `lofi`, `trap`, `909`, `techno` | Drum kit: sets the kick, snare and hats patches together ('custom' = use each layer's own patch) |
 | `groove.bpm` | 78 | 50 – 180 | Tempo. With the snare on beat 3, 70-90 BPM feels like lo-fi/trap half-time |
 | `groove.swing` | 0.12 | 0 – 0.6 | Delay of every off-beat 16th, as a fraction of a 16th |
 | `groove.bars_per_chord` | 2 | 1 – 16 | Bars each chord lasts |
@@ -631,6 +733,26 @@ Synth settings (`<layer>.synth.*`) are listed in the next section.
 | `hats.midi` | 72 | 36 – 108 | Hi-hat pitch (only matters for patches with a tone) |
 | `hats.pan` | 0.2 | -1 – 1 | Hi-hat position: -1 left .. +1 right |
 | `hats.reverb_send` | 0.1 | 0 – 1 | How much hi-hat goes into the reverb |
+| `openhat.enabled` | true | true / false | Play the open hi-hat (techno style) |
+| `openhat.level` | 0.25 | 0 – 1 | Open hi-hat volume |
+| `openhat.midi` | 72 | 36 – 108 | Open hi-hat pitch (only matters for patches with a tone) |
+| `openhat.pan` | -0.15 | -1 – 1 | Open hi-hat position: -1 left .. +1 right |
+| `openhat.reverb_send` | 0.15 | 0 – 1 | How much open hi-hat goes into the reverb |
+| `perc.enabled` | true | true / false | Play the percussion: rimshots and similar (techno style) |
+| `perc.level` | 0.3 | 0 – 1 | Percussion volume |
+| `perc.midi` | 76 | 36 – 108 | Percussion pitch (MIDI note) |
+| `perc.reverb_send` | 0.3 | 0 – 1 | How much percussion goes into the reverb |
+| `techno.phrase_bars` | 16 | 4 – 64 | Bars per phrase; one element enters or leaves at each phrase boundary |
+| `techno.intro_bars` | 32 | 0 – 512 | Kick-and-hats-only bars at the start (DJ-friendly intro) |
+| `techno.outro_bars` | 32 | 0 – 512 | Kick-and-hats-only bars at the end |
+| `techno.density` | 0.6 | 0.1 – 1 | How many elements tend to play at once |
+| `techno.breakdown_chance` | 0.15 | 0 – 1 | Chance per phrase of a breakdown (no kick) that builds into a drop |
+| `techno.bass_style` | auto | `auto`, `offbeat`, `rolling` | Bassline rhythm: offbeat, rolling 16ths, or auto (changes per phrase) |
+| `techno.acid_density` | 0.65 | 0.1 – 1 | Share of the 16 acid steps that play |
+| `techno.acid_accent` | 0.3 | 0 – 1 | Share of acid notes that are accented (louder, brighter) |
+| `techno.acid_slide` | 0.2 | 0 – 1 | Share of acid notes that slide into the next |
+| `techno.acid_sweep_octaves` | 2 | 0 – 4 | How far the acid filter drifts open and shut over time |
+| `techno.clap_flam_ms` | 11 | 2 – 30 | Spacing of the clap's three bursts |
 | `vinyl.enabled` | false | true / false | Add vinyl surface noise |
 | `vinyl.level` | 0.5 | 0 – 2 | Vinyl noise volume |
 | `vinyl.hiss` | 0.3 | 0 – 1 | Hiss under the crackle |
@@ -658,6 +780,8 @@ Synth settings (`<layer>.synth.*`) are listed in the next section.
 | `kick.patch` | kick_soft | see `--list-params` | Synth patch (patches/*.json); it fills in kick.synth.* |
 | `snare.patch` | snare_lofi | see `--list-params` | Synth patch (patches/*.json); it fills in snare.synth.* |
 | `hats.patch` | hat_closed | see `--list-params` | Synth patch (patches/*.json); it fills in hats.synth.* |
+| `openhat.patch` | openhat_909 | see `--list-params` | Synth patch (patches/*.json); it fills in openhat.synth.* |
+| `perc.patch` | rim_909 | see `--list-params` | Synth patch (patches/*.json); it fills in perc.synth.* |
 
 ---
 
@@ -704,6 +828,7 @@ a patch starts from.
 | `release` | 1 | 0.01 – 60 | Seconds to fade out after the note ends |
 | `breath_hz` | 0.1 | 0.01 – 5 | Speed of the slow volume swell (each note varies it a little) |
 | `breath_depth` | 0 | 0 – 1 | Depth of the slow volume swell |
+| `transpose` | 0 | -48 – 48 | Shift every note by this many semitones (lets a drum patch carry its own tuning) |
 | `gain_db` | 0 | -24 – 24 | Patch loudness trim, so patches can be swapped at the same level |
 
 ---

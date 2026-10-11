@@ -1,0 +1,18 @@
+{
+  "description": "Tight techno bass: saw, sine and sub with a short filter pluck",
+  "saw": 0.6,
+  "sine": 0.8,
+  "sub": 0.4,
+  "drive": 0.25,
+  "filter": "lowpass",
+  "cutoff_hz": 250,
+  "resonance": 0.3,
+  "key_track": 0.2,
+  "filter_env_octaves": 1.8,
+  "filter_attack": 0.002,
+  "filter_decay": 0.1,
+  "attack": 0.002,
+  "decay": 0.2,
+  "sustain": 0.5,
+  "release": 0.05
+}

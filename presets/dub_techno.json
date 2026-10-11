@@ -1,0 +1,91 @@
+{
+  "harmony": {
+    "key": "F",
+    "scale": "minor",
+    "chord_notes": 4,
+    "modulate_minutes": 0
+  },
+  "groove": {
+    "enabled": true,
+    "style": "techno",
+    "kit": "techno",
+    "bpm": 122,
+    "swing": 0.0,
+    "bars_per_chord": 16,
+    "loop_chords": 2,
+    "loop_repeats": 8,
+    "humanize_ms": 3,
+    "duck_depth": 0.3,
+    "duck_release": 0.25
+  },
+  "techno": {
+    "phrase_bars": 16,
+    "intro_bars": 32,
+    "outro_bars": 32,
+    "density": 0.5,
+    "breakdown_chance": 0.12,
+    "bass_style": "offbeat",
+    "acid_density": 0.5
+  },
+  "pad": {
+    "patch": "techno_pad",
+    "octave": 3,
+    "level": 0.32,
+    "reverb_send": 0.6
+  },
+  "bass": {
+    "patch": "techno_bass",
+    "octave": 1,
+    "level": 0.45,
+    "reverb_send": 0.0
+  },
+  "bells": {
+    "patch": "dub_stab",
+    "octave": 4,
+    "level": 0.38,
+    "reverb_send": 0.9
+  },
+  "lead": {
+    "enabled": false
+  },
+  "kick": {
+    "level": 0.75
+  },
+  "snare": {
+    "level": 0.4
+  },
+  "hats": {
+    "level": 0.22,
+    "pan": 0.15
+  },
+  "openhat": {
+    "level": 0.2
+  },
+  "perc": {
+    "level": 0.2
+  },
+  "air": {
+    "enabled": true,
+    "level": 0.03,
+    "cutoff_hz": 3000
+  },
+  "vinyl": {
+    "enabled": true,
+    "level": 0.25,
+    "hiss": 0.5,
+    "crackle_per_second": 3
+  },
+  "reverb": {
+    "seconds": 6.0,
+    "damping": 0.6,
+    "level": 0.6,
+    "predelay_ms": 40
+  },
+  "master": {
+    "gain_db": 0.0,
+    "lowpass_hz": 11000,
+    "saturation": 0.15,
+    "fade_in": 0,
+    "fade_out": 10
+  }
+}

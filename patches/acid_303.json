@@ -1,0 +1,18 @@
+{
+  "description": "303-style acid: saw through a squelchy, resonant filter with a punchy envelope; slides",
+  "saw": 1.0,
+  "sine": 0.0,
+  "glide_seconds": 0.06,
+  "drive": 0.45,
+  "filter": "lowpass",
+  "cutoff_hz": 300,
+  "resonance": 0.82,
+  "key_track": 0.4,
+  "filter_env_octaves": 3.0,
+  "filter_attack": 0.002,
+  "filter_decay": 0.2,
+  "attack": 0.002,
+  "decay": 0.25,
+  "sustain": 0.55,
+  "release": 0.04
+}

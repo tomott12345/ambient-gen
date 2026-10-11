@@ -1,0 +1,22 @@
+{
+  "description": "TR-909 style kick: deep sine pitch sweep around 52 Hz with a sharp click and driven body",
+  "sine": 1.0,
+  "triangle": 0.15,
+  "noise": 0.25,
+  "pitch_env_semitones": 22,
+  "pitch_env_decay": 0.05,
+  "drive": 0.3,
+  "filter": "lowpass",
+  "cutoff_hz": 250,
+  "resonance": 0.1,
+  "key_track": 0.0,
+  "filter_env_octaves": 5.5,
+  "filter_attack": 0.001,
+  "filter_decay": 0.025,
+  "attack": 0.001,
+  "decay": 0.55,
+  "sustain": 0.0,
+  "release": 0.05,
+  "transpose": -4,
+  "gain_db": 1.5
+}

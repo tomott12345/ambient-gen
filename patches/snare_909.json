@@ -1,0 +1,21 @@
+{
+  "description": "TR-909 style snare: two-tone body with a fast pitch drop under bright, snappy noise",
+  "triangle": 0.5,
+  "sine": 0.5,
+  "fm_ratio": 1.75,
+  "fm_index": 1.0,
+  "fm_index_decay": 0.05,
+  "noise": 1.1,
+  "pitch_env_semitones": 4,
+  "pitch_env_decay": 0.02,
+  "drive": 0.25,
+  "filter": "lowpass",
+  "cutoff_hz": 10000,
+  "key_track": 0.0,
+  "attack": 0.001,
+  "decay": 0.24,
+  "sustain": 0.0,
+  "release": 0.06,
+  "transpose": 2,
+  "gain_db": 3.0
+}

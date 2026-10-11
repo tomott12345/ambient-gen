@@ -1,0 +1,21 @@
+{
+  "description": "Dark techno pad: wide detuned saw and triangle under a slowly sweeping resonant filter",
+  "saw": 0.6,
+  "triangle": 0.4,
+  "sine": 0.0,
+  "unison": 4,
+  "detune_cents": 18,
+  "width": 1.0,
+  "drift_cents": 4,
+  "filter": "lowpass",
+  "cutoff_hz": 500,
+  "resonance": 0.3,
+  "key_track": 0.4,
+  "filter_lfo_hz": 0.02,
+  "filter_lfo_octaves": 1.2,
+  "attack": 6,
+  "sustain": 1.0,
+  "release": 8,
+  "breath_hz": 0.05,
+  "breath_depth": 0.1
+}

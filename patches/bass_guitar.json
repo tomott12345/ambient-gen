@@ -1,0 +1,22 @@
+{
+  "description": "Fingered electric bass: saw/pulse/sine body with a plucked filter thump that settles into a warm ring",
+  "saw": 0.5,
+  "square": 0.35,
+  "pulse_width": 0.45,
+  "sine": 0.6,
+  "drift_cents": 1.5,
+  "glide_seconds": 0.06,
+  "drive": 0.15,
+  "filter": "lowpass",
+  "cutoff_hz": 450,
+  "resonance": 0.2,
+  "key_track": 0.5,
+  "filter_env_octaves": 2.2,
+  "filter_attack": 0.003,
+  "filter_decay": 0.35,
+  "attack": 0.004,
+  "decay": 1.5,
+  "sustain": 0.4,
+  "release": 0.12,
+  "gain_db": 3.0
+}

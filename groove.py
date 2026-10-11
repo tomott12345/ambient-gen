@@ -30,7 +30,15 @@ GHOST_SNARE_PROB = {7: 0.06, 15: 0.12, 14: 0.05}
 #   0 = no drums (intro / breakdown), 1 = kick, snare, 8th hats, 2 = full beat with rolls
 ENERGY_MOVES = {0: {1: 0.7, 2: 0.3}, 1: {2: 0.65, 1: 0.25, 0: 0.1}, 2: {2: 0.55, 1: 0.25, 0: 0.2}}
 
-ROLL_SUBDIVISIONS = [6, 8, 8, 12]   # hits per beat in a hat roll: 16th triplets, 32nds, 32nd triplets
+ROLL_SUBDIVISIONS = [6, 8, 8, 12]
+
+# drum kits: groove.kit picks the kick, snare and hats patches in one go
+KITS = {
+    "lofi": {"kick": "kick_soft", "snare": "snare_lofi", "hats": "hat_closed"},
+    "trap": {"kick": "kick_punch", "snare": "snare_lofi", "hats": "hat_closed"},
+    "909": {"kick": "kick_909", "snare": "snare_909", "hats": "hat_909", "openhat": "openhat_909", "perc": "rim_909"},
+    "techno": {"kick": "kick_909", "snare": "clap_909", "hats": "hat_909", "openhat": "openhat_909", "perc": "rim_909"},
+}   # hits per beat in a hat roll: 16th triplets, 32nds, 32nd triplets
 
 
 class Grid:
@@ -250,3 +258,189 @@ class Crusher:
             q = 2 ** (self.bits - 1)
             x = np.round(x * q) / q
         return x
+
+
+# --- techno ------------------------------------------------------------------
+#
+# groove.style = "techno": a four-on-the-floor arrangement built for long
+# tracks and jams. Elements enter and leave one at a time at phrase
+# boundaries, with breakdowns, snare-roll builds and drops, and an acid line
+# whose filter drifts open and shut over minutes.
+
+TECHNO_ELEMENTS = ["clap", "hats", "openhat", "perc", "bass", "acid", "stabs", "pad"]
+# how likely each element is to be the next one brought in
+TECHNO_ADD_WEIGHT = {"clap": 3, "openhat": 3, "bass": 3, "hats": 2, "perc": 2, "acid": 2.5, "stabs": 1.5, "pad": 1.5}
+# how likely each element is to be the one taken out: the backbone (hats, clap, bass) sticks around
+TECHNO_REMOVE_WEIGHT = {"clap": 0.6, "openhat": 1.0, "bass": 0.6, "hats": 0.3, "perc": 1.3, "acid": 1.0, "stabs": 1.3, "pad": 1.2}
+# what survives into a breakdown (the kick, bass and beat drop out)
+TECHNO_BREAKDOWN_KEEPS = {"pad", "acid", "stabs", "perc"}
+
+
+def techno_arrangement(S: dict, rng, n_bars: int):
+    """For every bar: (set of active elements, is_breakdown, is_build).
+
+    The intro and outro are kick + hats only, which is easy to mix. In
+    between, once per phrase, one element is added, removed or swapped,
+    steering toward a target count that wanders slowly
+    (techno.density). Sometimes a phrase becomes a breakdown: the kick,
+    bass and beat stop and its last 2 bars build back up to the drop."""
+    phrase = S["techno.phrase_bars"]
+    n_phr = math.ceil(n_bars / phrase)
+    intro = math.ceil(S["techno.intro_bars"] / phrase)
+    outro = math.ceil(S["techno.outro_bars"] / phrase)
+    base = {"kick", "hats"}
+    current = set(base)
+    level = 0.5
+    bars, since_breakdown = [], 99  # phrases since the last breakdown
+    for i in range(n_phr):
+        breakdown = False
+        if i < intro or i >= n_phr - outro:
+            active = set(base)
+        elif (i >= intro + 4 and since_breakdown >= 4 and i < n_phr - outro - 1
+              and rng.random() < S["techno.breakdown_chance"]):
+            breakdown = True
+            active = (current & TECHNO_BREAKDOWN_KEEPS) | {"pad"}
+        else:
+            level = float(np.clip(level + rng.normal(0, 0.2), 0.15, 1.0))
+            target = 1 + round(level * S["techno.density"] * (len(TECHNO_ELEMENTS) - 1))
+            optional = sorted(current - {"kick"})
+            off = [e for e in TECHNO_ELEMENTS if e not in current]
+
+            def add():
+                if off:
+                    w = np.array([TECHNO_ADD_WEIGHT[e] for e in off])
+                    current.add(off.pop(int(rng.choice(len(off), p=w / w.sum()))))
+
+            def remove():
+                w = np.array([TECHNO_REMOVE_WEIGHT[e] for e in optional])
+                current.discard(optional[int(rng.choice(len(optional), p=w / w.sum()))])
+
+            if len(optional) < target:
+                add()
+            elif len(optional) > target and optional:
+                remove()
+            elif optional and rng.random() < 0.5:  # swap one for another: keeps it moving
+                remove()
+                add()
+            current.add("kick")
+            active = set(current)
+        since_breakdown = 0 if breakdown else since_breakdown + 1
+        for b in range(phrase):
+            bars.append((active, breakdown, breakdown and b >= phrase - 2))
+    return bars[:n_bars]
+
+
+def techno_events(S: dict, rng, grid: Grid, arrangement, chord_at, scale: list[int], total: float):
+    """Every techno note as (kind, time, hold_until or None, midi, velocity,
+    pan, glide_from, filter_octaves). hold_until None means a struck note
+    that rings for its patch's decay.
+
+    Patterns (perc, stabs, acid, bass style) are made fresh each phrase and
+    repeat bar by bar with small mutations, so the music stays hypnotic
+    but never exactly loops."""
+    ev = []
+    phrase = S["techno.phrase_bars"]
+    step = grid.step
+    jitter = S["groove.humanize_ms"] / 1000
+    flam = S["techno.clap_flam_ms"] / 1000
+
+    def at(bar, s, tight=False):
+        t = grid.at(bar, s) + (rng.normal(0, jitter) if jitter > 0 and not tight else 0.0)
+        return max(t, 0.0)
+
+    def drum(kind, bar, s, vel, pan=0.0, offset=0.0):
+        t = at(bar, s, tight=kind == "kick") + offset  # the kick stays dead on the grid
+        if t < total:
+            ev.append((kind, t, None, S[f"{kind}.midi"], float(np.clip(vel, 0.05, 1.0)), pan, None, 0.0))
+
+    macro = 0.0          # the acid filter's slow drift, in -1..1
+    acid, perc_steps, stab_steps, bass_style = [], [], [], "offbeat"
+    prev_acid = None
+    for bar, (active, breakdown, build) in enumerate(arrangement):
+        if bar % phrase == 0:  # new phrase: new patterns
+            perc_steps = sorted(int(s) for s in rng.choice([3, 5, 7, 10, 11, 13, 15], size=int(rng.integers(2, 5)), replace=False))
+            perc_pan = float(rng.uniform(-0.5, 0.5))
+            stab_steps = sorted(int(s) for s in rng.choice([3, 6, 7, 10, 11, 14], size=int(rng.integers(1, 4)), replace=False))
+            style = S["techno.bass_style"]
+            bass_style = style if style != "auto" else ("offbeat" if rng.random() < 0.6 else "rolling")
+            acid = [{"gate": rng.random() < S["techno.acid_density"] or s == 0,
+                     "offset": int(rng.choice([0, 0, 0, 12, 7, 3, 5, 10, -2])),
+                     "accent": rng.random() < S["techno.acid_accent"],
+                     "slide": rng.random() < S["techno.acid_slide"]} for s in range(16)]
+        elif rng.random() < 0.25:  # small mutation: one acid step changes
+            s = int(rng.integers(16))
+            acid[s] = {**acid[s], "gate": not acid[s]["gate"], "offset": int(rng.choice([0, 12, 7, 3, 5, 10]))}
+        macro = float(np.clip(macro + rng.normal(0, 0.12), -1.0, 1.0))
+        last_bar = bar % phrase == phrase - 1
+        key, pcs = chord_at(grid.at(bar, 0))
+
+        # drums
+        if "kick" in active:
+            for s in (0, 4, 8, 12):
+                if last_bar and s == 12 and rng.random() < 0.25:
+                    continue  # a dropped kick at the phrase end, a classic tension trick
+                drum("kick", bar, s, 1.0)
+        if "clap" in active:
+            for s in (4, 12):
+                for k, v in enumerate((0.55, 0.7, 1.0)):  # analog clap: three quick bursts
+                    drum("snare", bar, s, v * rng.uniform(0.9, 1.0), offset=k * flam)
+        if "hats" in active:
+            for s in range(16):
+                if "openhat" in active and s % 4 == 2:
+                    continue  # the open hat owns the offbeat
+                drum("hats", bar, s, (0.75 if s % 4 == 2 else 0.5 if s % 2 else 0.4) * rng.uniform(0.9, 1.0), S["hats.pan"])
+        if "openhat" in active:
+            for s in (2, 6, 10, 14):
+                drum("openhat", bar, s, 0.8 * rng.uniform(0.9, 1.0), S["openhat.pan"])
+        if "perc" in active:
+            for s in perc_steps:
+                if rng.random() > 0.1:
+                    drum("perc", bar, s, rng.uniform(0.55, 0.9), perc_pan)
+        if build:  # snare roll into the drop: 8ths, then 16ths, getting louder
+            first = (bar % phrase) == phrase - 2
+            for s in range(0, 16, 2 if first else 1):
+                ramp = (s / 16) * 0.5 + (0.0 if first else 0.5)
+                drum("snare", bar, s, 0.3 + 0.7 * ramp)
+
+        # bass
+        if "bass" in active:
+            root = 12 * (S["bass.octave"] + 1) + pcs[0]
+            steps = (2, 6, 10, 14) if bass_style == "offbeat" else [s for s in range(16) if s % 4]
+            for s in steps:
+                t = grid.at(bar, s)
+                if t < total:
+                    hold = t + step * (1.5 if bass_style == "offbeat" else 0.75)
+                    vel = 1.0 if bass_style == "offbeat" or s % 4 == 2 else 0.75
+                    ev.append(("bass", t, min(hold, total), root, vel, 0.0, None, 0.0))
+
+        # stabs: the chord, struck short on a syncopated rhythm
+        if "stabs" in active:
+            for s in stab_steps:
+                if rng.random() > 0.15:
+                    t = at(bar, s)
+                    if t < total:
+                        for pc in pcs:
+                            ev.append(("bells", t, None, 12 * (S["bells.octave"] + 1) + pc, 0.85, 0.0, None, 0.0))
+
+        # acid: a 16-step sequence on the chord root, with accents and slides
+        if "acid" in active:
+            base = 12 * (S["lead.octave"] + 1) + pcs[0]
+            gated = [s for s in range(16) if acid[s]["gate"]]
+            for i, s in enumerate(gated):
+                t = grid.at(bar, s)
+                if t >= total:
+                    continue
+                m = base + acid[s]["offset"]
+                if (m - key) % 12 not in scale:  # keep it in the scale when the chord moves
+                    m += 1 if (m + 1 - key) % 12 in scale else -1
+                nxt = gated[i + 1] if i + 1 < len(gated) else None
+                legato = acid[s]["slide"] and nxt is not None
+                hold = grid.at(bar, nxt) if legato else t + step * 0.55
+                glide = prev_acid if (prev_acid is not None and prev_acid[1] and prev_acid[2] == t) else None
+                fo = macro * S["techno.acid_sweep_octaves"] + (0.7 if acid[s]["accent"] else 0.0)
+                ev.append(("lead", t, min(hold, total), m, 1.0 if acid[s]["accent"] else 0.7, 0.0,
+                           glide[0] if glide else None, fo))
+                prev_acid = (m, legato, hold)
+        else:
+            prev_acid = None
+    return ev

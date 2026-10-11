@@ -1,0 +1,15 @@
+{
+  "description": "TR-909 style clap: band-passed noise bursts (the pattern plays three in a quick flam)",
+  "sine": 0.0,
+  "noise": 1.0,
+  "drive": 0.2,
+  "filter": "bandpass",
+  "cutoff_hz": 1200,
+  "resonance": 0.3,
+  "key_track": 0.0,
+  "attack": 0.0005,
+  "decay": 0.12,
+  "sustain": 0.0,
+  "release": 0.05,
+  "gain_db": 8.0
+}

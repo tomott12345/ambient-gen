@@ -79,6 +79,7 @@ PARAMS = [
     P("release", 1.0, "Seconds to fade out after the note ends", 0.01, 60),
     P("breath_hz", 0.1, "Speed of the slow volume swell (each note varies it a little)", 0.01, 5),
     P("breath_depth", 0.0, "Depth of the slow volume swell", 0, 1),
+    P("transpose", 0.0, "Shift every note by this many semitones (lets a drum patch carry its own tuning)", -48, 48),
     P("gain_db", 0.0, "Patch loudness trim, so patches can be swapped at the same level", -24, 24),
 ]
 PARAM_BY_NAME = {p["name"]: p for p in PARAMS}
@@ -213,7 +214,7 @@ def render(note, age, p: dict, sr: int):
     if note.voice is None:
         note.voice = Voice(note, p)
     v = note.voice
-    hz = midi_to_hz(note.midi)
+    hz = midi_to_hz(note.midi + p["transpose"])
     left = np.zeros(len(age))
     right = np.zeros(len(age))
 
@@ -229,7 +230,7 @@ def render(note, age, p: dict, sr: int):
         sweep = sweep + (2 ** (p["pitch_env_semitones"] / 12) - 1) * tau * (1 - np.exp(-age / tau))
     if note.glide_from is not None:
         tau = p["glide_seconds"] / 3
-        sweep = sweep + (midi_to_hz(note.glide_from) / hz - 1) * tau * (1 - np.exp(-age / tau))
+        sweep = sweep + (midi_to_hz(note.glide_from + p["transpose"]) / hz - 1) * tau * (1 - np.exp(-age / tau))
 
     for i in range(len(v.ratio)):
         f = hz * v.ratio[i]
@@ -282,6 +283,8 @@ def render(note, age, p: dict, sr: int):
             octaves = octaves + p["filter_env_octaves"] * env
         if p["filter_lfo_octaves"] > 0:
             octaves = octaves + p["filter_lfo_octaves"] * np.sin(TAU * p["filter_lfo_hz"] * age + v.lfo_phase)
+        if note.filter_octaves:  # per-note offset, e.g. a techno acid line's slow filter sweep and accents
+            octaves = octaves + note.filter_octaves
         base = p["cutoff_hz"] * 2 ** (p["key_track"] * (note.midi - 60) / 12)
         cutoff = np.clip(base * 2.0 ** (octaves + np.zeros(len(age))), 20, 0.45 * sr)
         left = _svf(left, cutoff, p["resonance"], mode, sr, v.filter_state[0:2])

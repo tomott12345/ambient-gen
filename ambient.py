@@ -124,13 +124,17 @@ KNOBS = [
     K("lead.enabled", False, "Play the lead melody"),
     K("lead.level", 0.3, "Lead volume", 0, 1),
     K("lead.per_minute", 10.0, "Notes per minute at their busiest", 0, 60),
-    K("lead.octave", 5, "Register: 5 sits around C5-G6", 3, 7),
+    K("lead.octave", 5, "Register: 5 sits around C5-G6 (an acid line sits at 2)", 1, 7),
     K("lead.note_beats", 1.5, "How long each note is held, in beats at groove.bpm (cut short by the next note)", 0.25, 8),
     K("lead.chord_bias", 0.75, "Chance of picking a chord note over any scale note", 0, 1),
     K("lead.reverb_send", 0.5, "How much lead goes into the reverb", 0, 1),
 
     # groove: tempo, beat grid and drums (off = pure ambient, as before)
     K("groove.enabled", False, "Turn on the beat: tempo, bar-aligned chord loops, drums, 808"),
+    K("groove.style", "lofi", "Beat style: lofi (half-time, rolls, 808) or techno (four-on-the-floor, acid, long builds)",
+      choices=["lofi", "techno"]),
+    K("groove.kit", "custom", "Drum kit: sets the kick, snare and hats patches together ('custom' = use each layer's own patch)",
+      choices=["custom"] + list(groove.KITS)),
     K("groove.bpm", 78.0, "Tempo. With the snare on beat 3, 70-90 BPM feels like lo-fi/trap half-time", 50, 180),
     K("groove.swing", 0.12, "Delay of every off-beat 16th, as a fraction of a 16th", 0, 0.6),
     K("groove.bars_per_chord", 2, "Bars each chord lasts", 1, 16),
@@ -159,6 +163,29 @@ KNOBS = [
     K("hats.midi", 72, "Hi-hat pitch (only matters for patches with a tone)", 36, 108),
     K("hats.pan", 0.2, "Hi-hat position: -1 left .. +1 right", -1, 1),
     K("hats.reverb_send", 0.1, "How much hi-hat goes into the reverb", 0, 1),
+    K("openhat.enabled", True, "Play the open hi-hat (techno style)"),
+    K("openhat.level", 0.25, "Open hi-hat volume", 0, 1),
+    K("openhat.midi", 72, "Open hi-hat pitch (only matters for patches with a tone)", 36, 108),
+    K("openhat.pan", -0.15, "Open hi-hat position: -1 left .. +1 right", -1, 1),
+    K("openhat.reverb_send", 0.15, "How much open hi-hat goes into the reverb", 0, 1),
+    K("perc.enabled", True, "Play the percussion: rimshots and similar (techno style)"),
+    K("perc.level", 0.3, "Percussion volume", 0, 1),
+    K("perc.midi", 76, "Percussion pitch (MIDI note)", 36, 108),
+    K("perc.reverb_send", 0.3, "How much percussion goes into the reverb", 0, 1),
+
+    # techno: only used with groove.style = techno
+    K("techno.phrase_bars", 16, "Bars per phrase; one element enters or leaves at each phrase boundary", 4, 64),
+    K("techno.intro_bars", 32, "Kick-and-hats-only bars at the start (DJ-friendly intro)", 0, 512),
+    K("techno.outro_bars", 32, "Kick-and-hats-only bars at the end", 0, 512),
+    K("techno.density", 0.6, "How many elements tend to play at once", 0.1, 1),
+    K("techno.breakdown_chance", 0.15, "Chance per phrase of a breakdown (no kick) that builds into a drop", 0, 1),
+    K("techno.bass_style", "auto", "Bassline rhythm: offbeat, rolling 16ths, or auto (changes per phrase)",
+      choices=["auto", "offbeat", "rolling"]),
+    K("techno.acid_density", 0.65, "Share of the 16 acid steps that play", 0.1, 1),
+    K("techno.acid_accent", 0.3, "Share of acid notes that are accented (louder, brighter)", 0, 1),
+    K("techno.acid_slide", 0.2, "Share of acid notes that slide into the next", 0, 1),
+    K("techno.acid_sweep_octaves", 2.0, "How far the acid filter drifts open and shut over time", 0, 4),
+    K("techno.clap_flam_ms", 11.0, "Spacing of the clap's three bursts", 2, 30),
 
     # vinyl: record crackle and hiss, laid over the finished mix
     K("vinyl.enabled", False, "Add vinyl surface noise"),
@@ -193,8 +220,9 @@ KNOBS = [
 # overridden per layer: pad.synth.cutoff_hz, bells.synth.decay, ...
 # The knob defaults come from the layer's default patch.
 LAYER_PATCHES = {"pad": "soft_pad", "bass": "round_bass", "bells": "fm_bell", "lead": "flute",
-                 "kick": "kick_soft", "snare": "snare_lofi", "hats": "hat_closed"}
-DRUMS = ("kick", "snare", "hats")
+                 "kick": "kick_soft", "snare": "snare_lofi", "hats": "hat_closed",
+                 "openhat": "openhat_909", "perc": "rim_909"}
+DRUMS = ("kick", "snare", "hats", "openhat", "perc")
 
 for _layer, _patch in LAYER_PATCHES.items():
     KNOBS.append(K(f"{_layer}.patch", _patch, f"Synth patch (patches/*.json); it fills in {_layer}.synth.*",
@@ -266,11 +294,15 @@ def load_settings(preset: str | None, overrides: list[str]) -> dict:
         given[path.strip()] = v.strip()
 
     S = dict(DEFAULTS)
-    for layer in LAYER_PATCHES:  # a chosen patch replaces the whole synth section...
-        S[f"{layer}.patch"] = coerce(f"{layer}.patch", given.get(f"{layer}.patch", S[f"{layer}.patch"]))
+    kit = groove.KITS.get(coerce("groove.kit", given.get("groove.kit", S["groove.kit"])), {})
+    for layer in LAYER_PATCHES:  # a chosen patch (or the kit's) replaces the whole synth section...
+        patch = kit.get(layer) or given.get(f"{layer}.patch", S[f"{layer}.patch"])
+        S[f"{layer}.patch"] = coerce(f"{layer}.patch", patch)
         for name, v in synth.load_patch(S[f"{layer}.patch"]).items():
             S[f"{layer}.synth.{name}"] = v
     for path, v in given.items():  # ...then individual settings tweak it
+        if path.endswith(".patch") and path.split(".")[0] in kit:
+            continue  # the kit decides these
         S[path] = coerce(path, v)
     if S["harmony.chord_seconds_max"] < S["harmony.chord_seconds_min"]:
         raise SystemExit("harmony.chord_seconds_max must be >= harmony.chord_seconds_min")
@@ -292,6 +324,7 @@ class Note:
     pan: float = 0.0           # -1 left .. +1 right
     seed: int = 0              # the note's own randomness (voice phases, drift), same in every block
     glide_from: int | None = None  # slide in from this pitch (808 slides)
+    filter_octaves: float = 0.0    # per-note filter offset (techno acid sweep and accents)
     voice: object = field(default=None, repr=False)  # synth state carried between blocks
 
 
@@ -400,6 +433,9 @@ def compose_groove(S: dict, rng_harmony, rng_bells, rng_drums, rng_lead=None):
             bar += per_chord
         plays += 1
 
+    if S["groove.style"] == "techno":
+        return compose_techno(S, rng_drums, grid, n_bars, notes, chords, scale, total)
+
     energies = groove.section_energies(S, rng_drums, n_bars)
     hits, kick_steps = groove.drum_hits(S, rng_drums, grid, energies, total)
     for kind, t, vel, pan in hits:
@@ -418,6 +454,30 @@ def compose_groove(S: dict, rng_harmony, rng_bells, rng_drums, rng_lead=None):
         notes += compose_melody(S, "bells", rng_bells, chords, total, grid=grid)
     if S["lead.enabled"] and S["lead.per_minute"] > 0:
         notes += compose_melody(S, "lead", rng_lead, chords, total, grid=grid)
+    notes.sort(key=lambda n: n.start)
+    return notes, chords
+
+
+def compose_techno(S: dict, rng, grid, n_bars: int, notes: list, chords: list, scale, total: float):
+    """Techno on top of the bar-aligned chords: groove.techno_arrangement()
+    decides which elements play in each bar, groove.techno_events() writes
+    their notes. The pad only plays in bars where it's in the arrangement;
+    the bells layer plays chord stabs and the lead layer an acid line."""
+    arrangement = groove.techno_arrangement(S, rng, n_bars)
+    notes = [n for n in notes if n.kind != "pad" or "pad" in arrangement[min(int(n.start // grid.bar), n_bars - 1)][0]]
+    chord_starts = [c[0] for c in chords]
+
+    def chord_at(t):
+        _, _, key, pcs = chords[bisect.bisect_right(chord_starts, t) - 1]
+        return key, pcs
+
+    for kind, t, hold, midi, vel, pan, glide, fo in groove.techno_events(S, rng, grid, arrangement, chord_at, scale, total):
+        if not S[f"{kind}.enabled"]:
+            continue
+        if hold is None:  # struck: rings for the patch's decay
+            hold = t + S[f"{kind}.synth.decay"]
+        notes.append(make_note(kind, t, hold, hold + S[f"{kind}.synth.release"], midi, vel=vel, pan=pan,
+                               glide_from=glide, filter_octaves=fo))
     notes.sort(key=lambda n: n.start)
     return notes, chords
 

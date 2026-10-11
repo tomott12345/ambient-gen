@@ -1,0 +1,23 @@
+{
+  "description": "Dub-techno chord stab: detuned saw and pulse, a quick filter blip, made for long reverb",
+  "saw": 0.7,
+  "square": 0.4,
+  "pulse_width": 0.4,
+  "sine": 0.0,
+  "unison": 2,
+  "detune_cents": 10,
+  "width": 0.6,
+  "drive": 0.1,
+  "filter": "lowpass",
+  "cutoff_hz": 700,
+  "resonance": 0.35,
+  "key_track": 0.3,
+  "filter_env_octaves": 2.0,
+  "filter_attack": 0.002,
+  "filter_decay": 0.12,
+  "attack": 0.002,
+  "decay": 0.35,
+  "sustain": 0.0,
+  "release": 0.1,
+  "gain_db": 4.0
+}

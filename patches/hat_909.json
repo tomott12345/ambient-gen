@@ -1,0 +1,18 @@
+{
+  "description": "TR-909 style closed hat: metallic FM partials and noise through a resonant highpass",
+  "sine": 0.5,
+  "fm_ratio": 1.4142,
+  "fm_index": 7.0,
+  "square": 0.3,
+  "noise": 0.9,
+  "transpose": 24,
+  "filter": "highpass",
+  "cutoff_hz": 7500,
+  "resonance": 0.3,
+  "key_track": 0.0,
+  "attack": 0.0005,
+  "decay": 0.06,
+  "sustain": 0.0,
+  "release": 0.02,
+  "gain_db": 11.0
+}
