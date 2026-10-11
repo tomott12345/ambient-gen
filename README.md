@@ -107,6 +107,12 @@ which patches play, and how big the room is. Presets live in `presets/`.
 | `lofi_trap_ensemble` | D# dorian | Beat: lofi_trap in D# dorian with strings, soft piano and a flute lead | pad: `warm_strings`, bass: `sub_808`, bells: `soft_piano`, lead: `flute`, drums: `kick_punch`, `snare_lofi`, `hat_closed`, vinyl |
 | `techno` | A minor | Techno: 130 BPM, 909 kit, acid line with drifting filter, offbeat/rolling bass, builds and drops | pad: `techno_pad`, bass: `techno_bass`, bells: `dub_stab`, lead: `acid_303`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909` |
 | `dub_techno` | F minor | Techno: 122 BPM, deep chord stabs into long reverb, offbeat bass, vinyl, no acid | pad: `techno_pad`, bass: `techno_bass`, bells: `dub_stab`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909`, air, vinyl |
+| `techno_punchy` | A minor | Techno: 132 BPM, driven tight kick, deeper pump, busier and louder | pad: `techno_pad`, bass: `techno_bass`, bells: `dub_stab`, lead: `acid_303`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909` |
+| `minimal_techno` | G minor | Techno: 125 BPM, sparse and dry, rolling bass, percussion-led, no acid | pad: `techno_pad`, bass: `techno_bass`, bells: `dub_stab`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909` |
+| `acid_techno` | F# minor | Techno: 135 BPM, busy squelchy 303 line with slides and wide filter sweeps | pad: `techno_pad`, bass: `techno_bass`, bells: `dub_stab`, lead: `acid_303`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909` |
+| `hypnotic_techno` | D minor | Techno: 128 BPM, 32-bar phrases, one chord at a time, deep and slow-changing | pad: `techno_pad`, bass: `techno_bass`, bells: `dub_stab`, lead: `acid_303`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909` |
+| `industrial_techno` | E phrygian | Techno: 140 BPM, overdriven kick and clap, heavy saturation, bit-crush | pad: `techno_pad`, bass: `techno_bass`, bells: `dub_stab`, lead: `acid_303`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909` |
+| `melodic_techno` | F# minor | Techno: 124 BPM, plucked arpeggio sequence over shimmering pads and stabs | pad: `shimmer_pad`, bass: `techno_bass`, bells: `dub_stab`, lead: `koto_pluck`, drums: `kick_909`, `clap_909`, `hat_909`, `openhat_909`, `rim_909` |
 
 ```bash
 python3 ambient.py --preset presets/aurora.json --minutes 20
@@ -281,14 +287,29 @@ patterns stay lo-fi/trap whichever kit plays them.
 ## Techno: long tracks and jams
 
 `groove.style=techno` swaps the lo-fi beat for a four-on-the-floor
-arrangement built to run for an hour or more without going stale. Two
-presets use it:
+arrangement built to run for an hour or more without going stale. Eight
+presets cover the main styles:
+
+| Preset | Key | BPM | Style |
+|---|---|---|---|
+| `techno` | A minor | 130 | The all-rounder: 909 kit, acid line, stabs, offbeat/rolling bass |
+| `techno_punchy` | A minor | 132 | Harder-hitting `techno`: driven tight kick, deeper pump, busier, louder master |
+| `minimal_techno` | G minor | 125 | Sparse, dry and clicky: rolling bass, percussion-led, no acid, few elements at once |
+| `acid_techno` | F# minor | 135 | The 303 up front: busy, accented, sliding, extra resonance and drive, wide filter sweeps |
+| `hypnotic_techno` | D minor | 128 | Deep and slow-changing: 32-bar phrases, one chord at a time, rare breakdowns, long intro/outro |
+| `industrial_techno` | E phrygian | 140 | Hard and distorted: overdriven kick and clap, rolling bass, heavy saturation, bit-crush |
+| `melodic_techno` | F# minor | 124 | Plucked arpeggio sequence over shimmering pads and stabs, 4-chord progressions |
+| `dub_techno` | F minor | 122 | Deep chord stabs into long reverb, offbeat bass, vinyl, no acid |
 
 ```bash
-python3 ambient.py --preset presets/techno.json --minutes 60          # 130 BPM, acid line, A minor
-python3 ambient.py --preset presets/dub_techno.json --minutes 90      # 122 BPM, deep stabs, long reverb, no acid
-python3 ambient.py --preset presets/techno.json --set groove.bpm=138 --set techno.density=0.85   # harder, busier
+python3 ambient.py --preset presets/techno.json --minutes 60
+python3 ambient.py --preset presets/hypnotic_techno.json --minutes 120     # a two-hour deep set
+python3 ambient.py --preset presets/acid_techno.json --set groove.bpm=140 --set techno.density=0.85   # harder, busier
 ```
+
+All of them are built only from settings (see `presets/`), so they are a
+good starting point for your own. Copy one and change the BPM, key,
+density, kit or patches.
 
 **The elements**
 

@@ -1,0 +1,109 @@
+{
+  "harmony": {
+    "key": "E",
+    "scale": "phrygian",
+    "chord_notes": 3,
+    "modulate_minutes": 0
+  },
+  "groove": {
+    "enabled": true,
+    "style": "techno",
+    "kit": "techno",
+    "bpm": 140,
+    "swing": 0.0,
+    "bars_per_chord": 16,
+    "loop_chords": 2,
+    "loop_repeats": 8,
+    "humanize_ms": 1,
+    "duck_depth": 0.5,
+    "duck_release": 0.2
+  },
+  "techno": {
+    "phrase_bars": 16,
+    "intro_bars": 32,
+    "outro_bars": 32,
+    "density": 0.8,
+    "breakdown_chance": 0.12,
+    "bass_style": "rolling",
+    "acid_density": 0.55,
+    "acid_accent": 0.3,
+    "acid_slide": 0.2,
+    "acid_sweep_octaves": 2.0
+  },
+  "pad": {
+    "patch": "techno_pad",
+    "octave": 3,
+    "level": 0.2,
+    "open_voicing": true,
+    "reverb_send": 0.5
+  },
+  "bass": {
+    "patch": "techno_bass",
+    "octave": 1,
+    "level": 0.5,
+    "reverb_send": 0.0,
+    "synth": {
+      "drive": 0.6
+    }
+  },
+  "bells": {
+    "patch": "dub_stab",
+    "octave": 4,
+    "level": 0.3,
+    "reverb_send": 0.6
+  },
+  "lead": {
+    "enabled": true,
+    "patch": "acid_303",
+    "octave": 2,
+    "level": 0.2,
+    "reverb_send": 0.15,
+    "synth": {
+      "drive": 0.85,
+      "resonance": 0.75
+    }
+  },
+  "kick": {
+    "level": 0.9,
+    "synth": {
+      "drive": 0.85,
+      "decay": 0.5
+    }
+  },
+  "snare": {
+    "level": 0.45,
+    "synth": {
+      "drive": 0.6
+    }
+  },
+  "hats": {
+    "level": 0.3,
+    "pan": 0.15
+  },
+  "openhat": {
+    "level": 0.2
+  },
+  "perc": {
+    "level": 0.25
+  },
+  "air": {
+    "enabled": false
+  },
+  "vinyl": {
+    "enabled": false
+  },
+  "reverb": {
+    "seconds": 2.5,
+    "damping": 0.3,
+    "level": 0.35,
+    "predelay_ms": 20
+  },
+  "master": {
+    "gain_db": 4.0,
+    "lowpass_hz": 16000,
+    "saturation": 0.5,
+    "fade_in": 0,
+    "fade_out": 8,
+    "bitcrush_bits": 10
+  }
+}
