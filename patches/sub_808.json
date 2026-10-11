@@ -1,0 +1,15 @@
+{
+  "description": "808 bass: sine with a pitch-drop punch, saturated, long boom; slides between notes",
+  "sine": 1.0,
+  "pitch_env_semitones": 12,
+  "pitch_env_decay": 0.06,
+  "glide_seconds": 0.09,
+  "drive": 0.4,
+  "filter": "lowpass",
+  "cutoff_hz": 700,
+  "key_track": 0.0,
+  "attack": 0.002,
+  "decay": 1.2,
+  "sustain": 0.45,
+  "release": 0.12
+}

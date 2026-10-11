@@ -1,7 +1,9 @@
 # ambient-gen
 
 Generative ambient music in Python, rendered straight to WAV files of any
-length, from a 2-minute sketch to an 8-hour sleep track.
+length, from a 2-minute sketch to an 8-hour sleep track. Turn on the groove
+and it also makes lo-fi / trap beats: drums, 808 slides, hi-hat rolls, vinyl
+crackle.
 
 Every run composes a new piece: chords drift through a scale, melodies
 wander, the filters breathe. Every piece can be reproduced exactly from its
@@ -21,6 +23,7 @@ python3 ambient.py --preset presets/dark_ambient.json --minutes 6
 - [Quick start](#quick-start)
 - [Presets](#presets)
 - [How it works](#how-it-works)
+- [Beats: the groove mode](#beats-the-groove-mode)
 - [The synth engine](#the-synth-engine)
 - [Patches](#patches)
 - [Changing settings](#changing-settings)
@@ -53,6 +56,7 @@ python3 ambient.py --preset presets/sleep.json --minutes 480      # an 8-hour sl
 python3 ambient.py --minutes 10 --seed 1234          # a specific, repeatable piece
 python3 ambient.py --set bells.enabled=false         # change any single setting
 python3 ambient.py --set pad.patch=warm_strings --set pad.synth.cutoff_hz=500
+python3 ambient.py --preset presets/lofi_trap.json --minutes 30      # lo-fi trap beats
 python3 ambient.py --list-presets                    # every preset, as JSON
 python3 ambient.py --list-patches                    # every synth patch, with descriptions
 python3 ambient.py --list-params                     # every setting, as JSON
@@ -96,6 +100,8 @@ which patches play, and how big the room is. Presets live in `presets/`.
 | `koto_garden` | E hirajoshi | Sparse and Japanese: hirajoshi plucks over a faint pad | pad: `soft_pad`, bells: `koto_pluck`, air |
 | `glass` | E lydian | Bright and busy: lydian supersaw, crystalline FM bells | pad: `shimmer_pad`, bells: `glass_crystal`, air |
 | `aurora` | B lydian | Wide and shimmering: lydian pad, glass bells, 15 s reverb | pad: `shimmer_pad`, bass: `round_bass`, bells: `glass_crystal`, air |
+| `lofi_trap` | F dorian | Beat: 76 BPM, worn e-piano chords, 808 slides, hi-hat rolls, vinyl, sampler grit | pad: `lofi_keys`, bass: `sub_808`, bells: `felt_piano`, drums: `kick_punch`, `snare_lofi`, `hat_closed`, vinyl |
+| `lofi_chill` | D minor | Beat: 70 BPM, swung and laid back, tape strings, soft kick, no rolls, more vinyl | pad: `tape_strings`, bass: `sub_808`, bells: `lofi_keys`, drums: `kick_soft`, `snare_lofi`, `hat_closed`, vinyl |
 
 ```bash
 python3 ambient.py --preset presets/aurora.json --minutes 20
@@ -167,10 +173,78 @@ seams.
 
 ---
 
+## Beats: the groove mode
+
+With `groove.enabled` on, the same machinery makes beat music. The
+`lofi_trap` and `lofi_chill` presets use it. With it off (the default),
+every other preset renders exactly as before.
+
+```bash
+python3 ambient.py --preset presets/lofi_trap.json --minutes 30
+python3 ambient.py --preset presets/lofi_chill.json --minutes 60 --set groove.bpm=68
+python3 ambient.py --preset presets/night.json --set groove.enabled=true     # put a beat under any preset
+```
+
+**What changes when the groove is on**
+
+- **Tempo and grid.** Everything sits on a 4/4 grid of 16th notes at
+  `groove.bpm`. Every off-beat 16th is delayed by `groove.swing`. The snare
+  is on beat 3, so 70-90 BPM gives the half-time lo-fi/trap pocket.
+- **Chord loops.** A progression of `groove.loop_chords` chords, each
+  `groove.bars_per_chord` bars long, repeats `groove.loop_repeats` times
+  before a new one is made, the way a beat loops a sample. With
+  `pad.restrike_beats` the chord is played again every N beats, like a
+  keys player comping, instead of being held.
+- **Sections.** Every `groove.section_bars` bars, the energy changes:
+
+  | Energy | What plays |
+  |---|---|
+  | 0 | No drums: intro, breakdowns, outro (chords, melody, vinyl) |
+  | 1 | Kick, snare, 8th-note hats, 808 |
+  | 2 | Full beat: 16th hats, hi-hat rolls, snare fills at phrase ends, syncopated 808 pushes |
+
+  A piece starts and ends at energy 0, and in between it walks randomly
+  from section to section (`ENERGY_MOVES` in `groove.py`).
+  `groove.breakdown_chance` sets how often a full beat drops out.
+- **Drums.** Each section gets a base pattern drawn from per-step
+  probabilities (`KICK_PROB` and friends in `groove.py`). Every bar varies it
+  slightly, so the groove stays recognizable without looping exactly. Hits
+  are humanized by `groove.humanize_ms`. Hi-hat rolls use 16th triplets,
+  32nds or 32nd triplets, rising or falling in velocity, mostly on beat 4
+  and at phrase ends.
+- **808.** The `bass` layer becomes an 808 line. It hits mostly with the
+  kick, plays the chord root (sometimes the octave or the 5th), holds until
+  the next hit, and slides into new pitches (`groove.slide_chance`). Use it
+  with the `sub_808` patch.
+- **Melody.** The `bells` layer is quantized to 8th notes.
+- **Sidechain pump.** The pad, 808 and melody dip by `groove.duck_depth` on
+  every kick and recover over `groove.duck_release` seconds.
+
+**The drums are synth patches.** `kick`, `snare` and `hats` are layers like
+the pad, so every drum is tunable with the same settings:
+
+```bash
+python3 ambient.py --preset presets/lofi_trap.json \
+  --set kick.synth.pitch_env_semitones=40 --set kick.synth.decay=0.6 \
+  --set hats.synth.cutoff_hz=9000 --set hats.synth.decay=0.12
+```
+
+**Lo-fi texture** (works with or without the groove):
+
+| Setting | Effect |
+|---|---|
+| `vinyl.enabled`, `vinyl.level`, `vinyl.hiss`, `vinyl.crackle_per_second` | Record surface: hiss, crackle and the occasional pop, over the finished mix |
+| `master.saturation` | Tape-style saturation of the whole mix |
+| `master.bitcrush_bits` | Bit reduction for sampler grit (12 is subtle, 8 is crunchy; 0 = off) |
+| `master.downsample_hz` | Sample-and-hold to a lower rate, like an old sampler (around 26000 is subtle; 0 = off) |
+| `master.lowpass_hz` | Darker top end; lo-fi usually sits at 6-9 kHz |
+
+---
+
 ## The synth engine
 
-`synth.py` is one subtractive/FM synth that plays the **pad**, **bass**
-and **bells** layers. Each layer picks a patch, and you can tweak any
+`synth.py` is one subtractive/FM synth that plays the **pad**, **bass**,
+**bells**, **kick**, **snare** and **hats** layers. Each layer picks a patch, and you can tweak any
 setting of that patch per layer.
 
 Signal flow for one note:
@@ -180,7 +254,11 @@ Signal flow for one note:
  │  saw + square/pulse + triangle + sine(FM: modulator at fm_ratio × pitch)      │
  │  pitch: vibrato + slow random "analog" drift per voice                        │
  └───────────────────────────────────────────────────────────────────────────────┘
+   pitch drop at the start (kick/808 punch) + glide from the previous note (808 slides)
           + sub sine (one octave down)     + white noise
+                              │
+                              ▼
+     drive (saturation)
                               │
                               ▼
      resonant filter: lowpass / bandpass / highpass  (or off)
@@ -219,6 +297,13 @@ Some details:
 - **Amp envelope**: `sustain` 0 makes a struck or plucked note that dies away
   over `decay`; `sustain` 1 makes a held pad. Struck notes on the bells layer
   are held for their `decay` time, then released.
+- **Pitch drop** (`pitch_env_semitones`, `pitch_env_decay`): each note starts
+  above its pitch and falls to it. A few semitones adds punch to an 808;
+  24-36 semitones over a few tens of milliseconds makes a kick drum.
+- **Glide** (`glide_seconds`): when a note has a previous pitch to slide from
+  (808 slides), it bends from it over this time.
+- **Drive** saturates the oscillators before the filter, from warm
+  (0.1-0.2) to gritty (0.5+).
 - **Breathing**: a slow volume swell, with the rate varied a little per note.
 - **Per-note randomness** (voice phases, drift rates, LFO starts) comes from
   each note's own seed, so it is the same on every render.
@@ -239,13 +324,19 @@ leaves out takes the engine's default.
 | `sub_swell` | pad | Triangle + sub under a resonant lowpass that sweeps slowly: deep and submerged |
 | `tape_strings` | pad | Warm strings played off worn tape: pitch wow, drift and a little hiss |
 | `warm_strings` | pad | Five-voice saw ensemble with a slowly breathing filter |
+| `lofi_keys` | pad (restruck) or bells | Worn electric piano for chords: FM tines, tape wow and a dark top |
 | `round_bass` | bass | Sine with a touch of triangle: felt more than heard (the original bass) |
+| `sub_808` | bass (808) | 808 bass: sine with a pitch-drop punch, saturated, long boom; slides between notes |
 | `church_bell` | bells | Low inharmonic FM bell (ratio 1.41) with a long, slow hum |
 | `felt_piano` | bells | Soft FM electric piano with the hammers wrapped in felt |
 | `fm_bell` | bells | Two-operator FM bell, 3.5 ratio, shimmer fades before the tone (the original bells) |
 | `glass_crystal` | bells | High-ratio FM: glassy, crystalline, long ring |
 | `hollow_drop` | bells | Hollow FM tone (ratio 2) through a bandpass: like a drop in a cave |
 | `koto_pluck` | bells | Plucked string: bright pulse snapping shut through a fast filter envelope |
+| `kick_punch` | kick | Tight trap kick: fast deep pitch drop, a little drive, short tail |
+| `kick_soft` | kick | Round, soft kick: a sine that drops two octaves, with a gentle click |
+| `snare_lofi` | snare | Dusty snare: a short tone body under filtered noise |
+| `hat_closed` | hats | Closed hi-hat: bright noise through a resonant highpass, very short |
 
 Pick a patch per layer:
 
@@ -256,6 +347,7 @@ python3 ambient.py --set pad.patch=abyss_drone --set bells.patch=church_bell
 Every patch carries a `gain_db` trim, measured so that all pads play at about
 the same loudness (around −18 LUFS on their own) and all struck sounds do too
 (around −24 LUFS). Swapping patches therefore won't cause big volume jumps.
+The drum patches are balanced against each other for a lo-fi mix.
 
 ---
 
@@ -276,9 +368,11 @@ Every setting has a dotted path:
 | `<layer>.<setting>` | `bells.per_minute=2` | A layer's musical role: level, register, density, reverb send |
 | `<layer>.patch` | `pad.patch=organ` | Which synth patch a layer plays |
 | `<layer>.synth.<param>` | `pad.synth.resonance=0.7` | Tweak one synth setting of that layer's patch |
-| `air.*`, `reverb.*`, `master.*` | `reverb.seconds=15` | Effects and output |
+| `groove.*` | `groove.bpm=82` | Tempo, loops, sections and drum behaviour |
+| `air.*`, `vinyl.*`, `reverb.*`, `master.*` | `reverb.seconds=15` | Effects and output |
 
-The layers are `pad`, `bass` and `bells`. Values are type- and range-checked:
+The layers are `pad`, `bass`, `bells`, and (with the groove on) `kick`,
+`snare` and `hats`. Values are type- and range-checked:
 `--set pad.level=2` stops with `pad.level: 2.0 is outside 0..1`.
 
 Some recipes:
@@ -374,8 +468,8 @@ python3 ambient.py --minutes 1.5 --set pad.patch=my_patch \
   python3 ambient.py --preset renders/ambient_tape_memory_1433086701.json
   ```
 
-- The randomness is split into independent streams (harmony, bells, air,
-  reverb, dither). Changing the air or reverb settings doesn't change the
+- The randomness is split into independent streams (harmony, bells, drums,
+  vinyl, air, reverb, dither). Changing the air or reverb settings doesn't change the
   notes; turning a layer off doesn't change what the others play.
 
 ---
@@ -385,7 +479,7 @@ python3 ambient.py --minutes 1.5 --set pad.patch=my_patch \
 - **Memory** stays flat at any length, because audio is rendered and written
   in 10-second blocks.
 - **Speed** is about 5-25x faster than realtime on an Apple Silicon Mac,
-  depending on the patches. Wide unison pads (`shimmer_pad` with 5-note
+  depending on the patches; the lo-fi presets run at about 10-20x. Wide unison pads (`shimmer_pad` with 5-note
   chords) are the slowest; FM bells are nearly free. One hour takes roughly
   3-12 minutes.
 - **Formats:** `bit_depth` 24 (default) or 16 (with triangular dither), at
@@ -423,8 +517,8 @@ slider, toggle or dropdown for each:
   "min": 20, "max": 20000, "choices": null, "help": "Filter cutoff at middle C" }
 ```
 
-Paths group naturally into UI sections: `harmony`, `pad`, `pad.synth`, `bass`,
-`bells`, `air`, `reverb` and `master`.
+Paths group naturally into UI sections: `harmony`, `groove`, `pad`, `pad.synth`,
+`bass`, `bells`, `kick`, `snare`, `hats`, `air`, `vinyl`, `reverb` and `master`.
 
 **Run a render**
 
@@ -477,6 +571,7 @@ Synth settings (`<layer>.synth.*`) are listed in the next section.
 | `pad.level` | 0.5 | 0 – 1 | Pad volume |
 | `pad.octave` | 3 | 1 – 5 | Register: 3 sits around C3-C4 |
 | `pad.open_voicing` | true | true / false | Spread chord notes over two octaves instead of one |
+| `pad.restrike_beats` | 0 | 0 – 16 | With the groove on: re-strike the chord every N beats (0 = hold it) |
 | `pad.reverb_send` | 0.6 | 0 – 1 | How much pad goes into the reverb |
 | `bass.enabled` | true | true / false | Play the bass |
 | `bass.level` | 0.28 | 0 – 1 | Bass volume |
@@ -488,6 +583,37 @@ Synth settings (`<layer>.synth.*`) are listed in the next section.
 | `bells.octave` | 5 | 3 – 7 | Register: 5 sits around C5-G6 |
 | `bells.chord_bias` | 0.7 | 0 – 1 | Chance of picking a chord note over any scale note |
 | `bells.reverb_send` | 0.8 | 0 – 1 | How much bell goes into the reverb |
+| `groove.enabled` | false | true / false | Turn on the beat: tempo, bar-aligned chord loops, drums, 808 |
+| `groove.bpm` | 78 | 50 – 180 | Tempo. With the snare on beat 3, 70-90 BPM feels like lo-fi/trap half-time |
+| `groove.swing` | 0.12 | 0 – 0.6 | Delay of every off-beat 16th, as a fraction of a 16th |
+| `groove.bars_per_chord` | 2 | 1 – 16 | Bars each chord lasts |
+| `groove.loop_chords` | 4 | 1 – 8 | Chords in the looping progression |
+| `groove.loop_repeats` | 4 | 1 – 64 | Times the progression loops before a new one is made |
+| `groove.section_bars` | 8 | 2 – 64 | Bars per section; the energy (no drums / beat / full beat) changes between sections |
+| `groove.breakdown_chance` | 0.2 | 0 – 1 | Chance that a full-beat section is followed by a drumless breakdown |
+| `groove.kick_density` | 1 | 0 – 2.5 | Scales the chance of the optional kicks |
+| `groove.hat_rolls` | 0.35 | 0 – 1 | Chance per bar of a trap hi-hat roll (in full-beat sections) |
+| `groove.slide_chance` | 0.3 | 0 – 1 | Chance that the 808 slides into a new pitch |
+| `groove.humanize_ms` | 8 | 0 – 40 | Random timing wobble of each drum hit |
+| `groove.duck_depth` | 0.35 | 0 – 1 | Sidechain: how far pad, bass and melody dip on each kick |
+| `groove.duck_release` | 0.3 | 0.02 – 2 | Sidechain: seconds to recover after each kick |
+| `kick.enabled` | true | true / false | Play the kick |
+| `kick.level` | 0.6 | 0 – 1 | Kick volume |
+| `kick.midi` | 36 | 12 – 72 | Kick pitch (MIDI note; 36 = C2) |
+| `kick.reverb_send` | 0.05 | 0 – 1 | How much kick goes into the reverb |
+| `snare.enabled` | true | true / false | Play the snare |
+| `snare.level` | 0.45 | 0 – 1 | Snare volume |
+| `snare.midi` | 52 | 24 – 84 | Snare body pitch (MIDI note) |
+| `snare.reverb_send` | 0.2 | 0 – 1 | How much snare goes into the reverb |
+| `hats.enabled` | true | true / false | Play the hi-hats |
+| `hats.level` | 0.25 | 0 – 1 | Hi-hat volume |
+| `hats.midi` | 72 | 36 – 108 | Hi-hat pitch (only matters for patches with a tone) |
+| `hats.pan` | 0.2 | -1 – 1 | Hi-hat position: -1 left .. +1 right |
+| `hats.reverb_send` | 0.1 | 0 – 1 | How much hi-hat goes into the reverb |
+| `vinyl.enabled` | false | true / false | Add vinyl surface noise |
+| `vinyl.level` | 0.5 | 0 – 2 | Vinyl noise volume |
+| `vinyl.hiss` | 0.3 | 0 – 1 | Hiss under the crackle |
+| `vinyl.crackle_per_second` | 8 | 0 – 100 | Crackles per second |
 | `air.enabled` | true | true / false | Play the air layer |
 | `air.level` | 0.05 | 0 – 1 | Air volume |
 | `air.cutoff_hz` | 2500 | 200 – 16000 | Top of the noise band; lower = darker |
@@ -499,11 +625,17 @@ Synth settings (`<layer>.synth.*`) are listed in the next section.
 | `reverb.predelay_ms` | 25 | 0 – 250 | Gap before the reverb starts |
 | `master.gain_db` | -4 | -24 – 12 | Output gain before the soft limiter |
 | `master.lowpass_hz` | 11000 | 1000 – 20000 | Gentle top-end roll-off for warmth |
+| `master.saturation` | 0 | 0 – 1 | Tape-style saturation of the whole mix |
+| `master.bitcrush_bits` | 0 | 0 – 16 | Reduce to this many bits for sampler grit (0 = off) |
+| `master.downsample_hz` | 0 | 0 – 48000 | Sample-and-hold to this rate for old-sampler aliasing (0 = off) |
 | `master.fade_in` | 8 | 0 – 600 | Fade-in seconds at the start |
 | `master.fade_out` | 25 | 0 – 600 | Fade-out seconds at the end |
 | `pad.patch` | soft_pad | see `--list-params` | Synth patch (patches/*.json); it fills in pad.synth.* |
 | `bass.patch` | round_bass | see `--list-params` | Synth patch (patches/*.json); it fills in bass.synth.* |
 | `bells.patch` | fm_bell | see `--list-params` | Synth patch (patches/*.json); it fills in bells.synth.* |
+| `kick.patch` | kick_soft | see `--list-params` | Synth patch (patches/*.json); it fills in kick.synth.* |
+| `snare.patch` | snare_lofi | see `--list-params` | Synth patch (patches/*.json); it fills in snare.synth.* |
+| `hats.patch` | hat_closed | see `--list-params` | Synth patch (patches/*.json); it fills in hats.synth.* |
 
 ---
 
@@ -531,6 +663,10 @@ a patch starts from.
 | `drift_cents` | 0 | 0 – 40 | Slow random pitch wander per voice (analog / tape feel) |
 | `vibrato_hz` | 5 | 0.05 – 12 | Vibrato speed |
 | `vibrato_cents` | 0 | 0 – 60 | Vibrato depth |
+| `pitch_env_semitones` | 0 | 0 – 48 | Each note starts this far above its pitch and drops to it: kick and 808 punch |
+| `pitch_env_decay` | 0.05 | 0.001 – 2 | Seconds for that pitch drop |
+| `glide_seconds` | 0.08 | 0.005 – 2 | Slide time when a note glides in from the previous pitch (808 slides) |
+| `drive` | 0 | 0 – 1 | Saturation before the filter: from warmth to grit |
 | `filter` | off | `off`, `lowpass`, `bandpass`, `highpass` | Filter type |
 | `cutoff_hz` | 2000 | 20 – 20000 | Filter cutoff at middle C |
 | `resonance` | 0.1 | 0 – 0.95 | Emphasis at the cutoff; near 1 it whistles |
@@ -556,6 +692,7 @@ a patch starts from.
 ambient-gen/
 ├── ambient.py        the script: scales, settings, composing, rendering, command line
 ├── synth.py          the synth engine: PARAMS, oscillators, filter, envelopes
+├── groove.py         beats: grid, sections, drum patterns, 808 line, vinyl, sidechain, crusher
 ├── ambient_io.py     plumbing: streaming WAV/RF64 writer, @@progress events
 ├── patches/          synth sounds (one JSON per patch)
 ├── presets/          moods (one JSON per preset)

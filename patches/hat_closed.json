@@ -1,0 +1,14 @@
+{
+  "description": "Closed hi-hat: bright noise through a resonant highpass, very short",
+  "sine": 0.0,
+  "noise": 1.0,
+  "filter": "highpass",
+  "cutoff_hz": 7500,
+  "resonance": 0.25,
+  "key_track": 0.0,
+  "attack": 0.0008,
+  "decay": 0.07,
+  "sustain": 0.0,
+  "release": 0.02,
+  "gain_db": 13.0
+}

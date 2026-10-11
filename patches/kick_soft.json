@@ -1,0 +1,16 @@
+{
+  "description": "Round, soft kick: a sine that drops two octaves, with a gentle click",
+  "sine": 1.0,
+  "noise": 0.04,
+  "pitch_env_semitones": 24,
+  "pitch_env_decay": 0.05,
+  "drive": 0.15,
+  "filter": "lowpass",
+  "cutoff_hz": 1800,
+  "key_track": 0.0,
+  "attack": 0.001,
+  "decay": 0.4,
+  "sustain": 0.0,
+  "release": 0.05,
+  "gain_db": 3.0
+}

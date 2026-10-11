@@ -5,8 +5,10 @@ One engine, many sounds. A *patch* (a JSON file in patches/) is a set of
 values for the PARAMS below. Signal flow for one note:
 
     unison voices (1-7), each detuned and panned:
-        saw + square + triangle + sine(FM) mix, with vibrato and slow drift
+        saw + square + triangle + sine(FM) mix, with vibrato and slow drift,
+        an optional pitch drop at the start and a glide from the previous note
     + sub sine an octave down + noise
+    -> drive (saturation)
     -> resonant filter (lowpass / bandpass / highpass)
          cutoff follows the key, an attack-decay envelope, and a slow LFO
     -> amp envelope (attack, decay, sustain, release) x slow "breathing"
@@ -56,6 +58,10 @@ PARAMS = [
     P("drift_cents", 0.0, "Slow random pitch wander per voice (analog / tape feel)", 0, 40),
     P("vibrato_hz", 5.0, "Vibrato speed", 0.05, 12),
     P("vibrato_cents", 0.0, "Vibrato depth", 0, 60),
+    P("pitch_env_semitones", 0.0, "Each note starts this far above its pitch and drops to it: kick and 808 punch", 0, 48),
+    P("pitch_env_decay", 0.05, "Seconds for that pitch drop", 0.001, 2),
+    P("glide_seconds", 0.08, "Slide time when a note glides in from the previous pitch (808 slides)", 0.005, 2),
+    P("drive", 0.0, "Saturation before the filter: from warmth to grit", 0, 1),
     # filter
     P("filter", "off", "Filter type", choices=list(FILTER_MODES)),
     P("cutoff_hz", 2000.0, "Filter cutoff at middle C", 20, 20000),
@@ -215,12 +221,23 @@ def render(note, age, p: dict, sr: int):
     if p["sine"] > 0 and p["fm_index"] > 0:
         fm_index = p["fm_index"] * (np.exp(-6.9 * age / p["fm_index_decay"]) if p["fm_index_decay"] > 0 else 1.0)
     vibrato = _lfo_phase(age, p["vibrato_hz"], p["vibrato_cents"]) if p["vibrato_cents"] > 0 else 0.0
+    # pitch drop and glide, as extra cycles (per Hz of pitch), integrated in closed form:
+    # frequency x (1 + A*e^(-t/tau)) and x (1 + (from/to - 1)*e^(-t/tau))
+    sweep = 0.0
+    if p["pitch_env_semitones"] > 0:
+        tau = p["pitch_env_decay"] / 3
+        sweep = sweep + (2 ** (p["pitch_env_semitones"] / 12) - 1) * tau * (1 - np.exp(-age / tau))
+    if note.glide_from is not None:
+        tau = p["glide_seconds"] / 3
+        sweep = sweep + (midi_to_hz(note.glide_from) / hz - 1) * tau * (1 - np.exp(-age / tau))
 
     for i in range(len(v.ratio)):
         f = hz * v.ratio[i]
         cycles = age + vibrato
         if p["drift_cents"] > 0:
             cycles = cycles + _lfo_phase(age, v.drift_hz[i], p["drift_cents"], v.drift_phase[i])
+        if p["pitch_env_semitones"] > 0 or note.glide_from is not None:
+            cycles = cycles + sweep
         cycles = f * cycles + v.phase0[i]
         ph = cycles % 1.0
         dt = f / sr
@@ -250,6 +267,11 @@ def render(note, age, p: dict, sr: int):
         index = np.round((note.start + age) * sr).astype(np.int64)
         left += p["noise"] * 0.5 * _hash_noise(index, v.seed)
         right += p["noise"] * 0.5 * _hash_noise(index, v.seed + 1)
+
+    if p["drive"] > 0:
+        k = 1 + 9 * p["drive"]
+        left = np.tanh(left * k) / math.tanh(k)
+        right = np.tanh(right * k) / math.tanh(k)
 
     mode = FILTER_MODES[p["filter"]]
     if mode >= 0:

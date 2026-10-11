@@ -1,0 +1,21 @@
+{
+  "description": "Worn electric piano for chords: FM tines, tape wow and a dark top",
+  "sine": 1.0,
+  "fm_ratio": 1.0,
+  "fm_index": 1.3,
+  "fm_index_decay": 1.2,
+  "unison": 2,
+  "detune_cents": 8,
+  "width": 0.5,
+  "drift_cents": 6,
+  "vibrato_hz": 0.5,
+  "vibrato_cents": 5,
+  "drive": 0.15,
+  "filter": "lowpass",
+  "cutoff_hz": 1800,
+  "key_track": 0.6,
+  "attack": 0.006,
+  "decay": 3.5,
+  "sustain": 0.18,
+  "release": 0.6
+}

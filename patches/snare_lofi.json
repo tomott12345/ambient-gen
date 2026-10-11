@@ -1,0 +1,17 @@
+{
+  "description": "Dusty snare: a short tone body under filtered noise",
+  "sine": 0.55,
+  "noise": 1.0,
+  "pitch_env_semitones": 7,
+  "pitch_env_decay": 0.03,
+  "drive": 0.2,
+  "filter": "lowpass",
+  "cutoff_hz": 6500,
+  "resonance": 0.05,
+  "key_track": 0.0,
+  "attack": 0.001,
+  "decay": 0.22,
+  "sustain": 0.0,
+  "release": 0.05,
+  "gain_db": 6.0
+}

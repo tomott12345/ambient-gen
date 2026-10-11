@@ -1,0 +1,16 @@
+{
+  "description": "Tight trap kick: fast deep pitch drop, a little drive, short tail",
+  "sine": 1.0,
+  "noise": 0.08,
+  "pitch_env_semitones": 36,
+  "pitch_env_decay": 0.035,
+  "drive": 0.35,
+  "filter": "lowpass",
+  "cutoff_hz": 3500,
+  "key_track": 0.0,
+  "attack": 0.001,
+  "decay": 0.28,
+  "sustain": 0.0,
+  "release": 0.03,
+  "gain_db": 3.0
+}

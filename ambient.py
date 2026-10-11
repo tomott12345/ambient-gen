@@ -44,6 +44,7 @@ import numpy as np
 from scipy import signal
 
 import ambient_io
+import groove
 import synth
 
 TAU = 2 * math.pi
@@ -102,6 +103,7 @@ KNOBS = [
     K("pad.level", 0.5, "Pad volume", 0, 1),
     K("pad.octave", 3, "Register: 3 sits around C3-C4", 1, 5),
     K("pad.open_voicing", True, "Spread chord notes over two octaves instead of one"),
+    K("pad.restrike_beats", 0, "With the groove on: re-strike the chord every N beats (0 = hold it)", 0, 16),
     K("pad.reverb_send", 0.6, "How much pad goes into the reverb", 0, 1),
 
     # bass: the chord root, an octave or two down
@@ -117,6 +119,43 @@ KNOBS = [
     K("bells.octave", 5, "Register: 5 sits around C5-G6", 3, 7),
     K("bells.chord_bias", 0.7, "Chance of picking a chord note over any scale note", 0, 1),
     K("bells.reverb_send", 0.8, "How much bell goes into the reverb", 0, 1),
+
+    # groove: tempo, beat grid and drums (off = pure ambient, as before)
+    K("groove.enabled", False, "Turn on the beat: tempo, bar-aligned chord loops, drums, 808"),
+    K("groove.bpm", 78.0, "Tempo. With the snare on beat 3, 70-90 BPM feels like lo-fi/trap half-time", 50, 180),
+    K("groove.swing", 0.12, "Delay of every off-beat 16th, as a fraction of a 16th", 0, 0.6),
+    K("groove.bars_per_chord", 2, "Bars each chord lasts", 1, 16),
+    K("groove.loop_chords", 4, "Chords in the looping progression", 1, 8),
+    K("groove.loop_repeats", 4, "Times the progression loops before a new one is made", 1, 64),
+    K("groove.section_bars", 8, "Bars per section; the energy (no drums / beat / full beat) changes between sections", 2, 64),
+    K("groove.breakdown_chance", 0.2, "Chance that a full-beat section is followed by a drumless breakdown", 0, 1),
+    K("groove.kick_density", 1.0, "Scales the chance of the optional kicks", 0, 2.5),
+    K("groove.hat_rolls", 0.35, "Chance per bar of a trap hi-hat roll (in full-beat sections)", 0, 1),
+    K("groove.slide_chance", 0.3, "Chance that the 808 slides into a new pitch", 0, 1),
+    K("groove.humanize_ms", 8.0, "Random timing wobble of each drum hit", 0, 40),
+    K("groove.duck_depth", 0.35, "Sidechain: how far pad, bass and melody dip on each kick", 0, 1),
+    K("groove.duck_release", 0.3, "Sidechain: seconds to recover after each kick", 0.02, 2),
+
+    # drums: synth layers like the pad, each with its own patch (only play with the groove on)
+    K("kick.enabled", True, "Play the kick"),
+    K("kick.level", 0.6, "Kick volume", 0, 1),
+    K("kick.midi", 36, "Kick pitch (MIDI note; 36 = C2)", 12, 72),
+    K("kick.reverb_send", 0.05, "How much kick goes into the reverb", 0, 1),
+    K("snare.enabled", True, "Play the snare"),
+    K("snare.level", 0.45, "Snare volume", 0, 1),
+    K("snare.midi", 52, "Snare body pitch (MIDI note)", 24, 84),
+    K("snare.reverb_send", 0.2, "How much snare goes into the reverb", 0, 1),
+    K("hats.enabled", True, "Play the hi-hats"),
+    K("hats.level", 0.25, "Hi-hat volume", 0, 1),
+    K("hats.midi", 72, "Hi-hat pitch (only matters for patches with a tone)", 36, 108),
+    K("hats.pan", 0.2, "Hi-hat position: -1 left .. +1 right", -1, 1),
+    K("hats.reverb_send", 0.1, "How much hi-hat goes into the reverb", 0, 1),
+
+    # vinyl: record crackle and hiss, laid over the finished mix
+    K("vinyl.enabled", False, "Add vinyl surface noise"),
+    K("vinyl.level", 0.5, "Vinyl noise volume", 0, 2),
+    K("vinyl.hiss", 0.3, "Hiss under the crackle", 0, 1),
+    K("vinyl.crackle_per_second", 8.0, "Crackles per second", 0, 100),
 
     # air: filtered noise that swells slowly, like wind or tape hiss
     K("air.enabled", True, "Play the air layer"),
@@ -134,6 +173,9 @@ KNOBS = [
     # master
     K("master.gain_db", -4.0, "Output gain before the soft limiter", -24, 12),
     K("master.lowpass_hz", 11000.0, "Gentle top-end roll-off for warmth", 1000, 20000),
+    K("master.saturation", 0.0, "Tape-style saturation of the whole mix", 0, 1),
+    K("master.bitcrush_bits", 0, "Reduce to this many bits for sampler grit (0 = off)", 0, 16),
+    K("master.downsample_hz", 0.0, "Sample-and-hold to this rate for old-sampler aliasing (0 = off)", 0, 48000),
     K("master.fade_in", 8.0, "Fade-in seconds at the start", 0, 600),
     K("master.fade_out", 25.0, "Fade-out seconds at the end", 0, 600),
 ]
@@ -141,7 +183,9 @@ KNOBS = [
 # Each synth-played layer picks a patch, and every synth setting can also be
 # overridden per layer: pad.synth.cutoff_hz, bells.synth.decay, ...
 # The knob defaults come from the layer's default patch.
-LAYER_PATCHES = {"pad": "soft_pad", "bass": "round_bass", "bells": "fm_bell"}
+LAYER_PATCHES = {"pad": "soft_pad", "bass": "round_bass", "bells": "fm_bell",
+                 "kick": "kick_soft", "snare": "snare_lofi", "hats": "hat_closed"}
+DRUMS = ("kick", "snare", "hats")
 
 for _layer, _patch in LAYER_PATCHES.items():
     KNOBS.append(K(f"{_layer}.patch", _patch, f"Synth patch (patches/*.json); it fills in {_layer}.synth.*",
@@ -230,7 +274,7 @@ def load_settings(preset: str | None, overrides: list[str]) -> dict:
 
 @dataclass
 class Note:
-    kind: str        # "pad", "bass" or "bells": the instrument, and its knob group
+    kind: str        # "pad", "bass", "bells", "kick", "snare", "hats": the layer that plays it
     start: float     # seconds from the beginning of the piece
     release: float   # when the fade-out begins (pad/bass)
     end: float       # when it's silent and can be forgotten
@@ -238,6 +282,7 @@ class Note:
     vel: float = 1.0
     pan: float = 0.0           # -1 left .. +1 right
     seed: int = 0              # the note's own randomness (voice phases, drift), same in every block
+    glide_from: int | None = None  # slide in from this pitch (808 slides)
     voice: object = field(default=None, repr=False)  # synth state carried between blocks
 
 
@@ -260,7 +305,9 @@ def voice_chord(pcs: list[int], octave: int, open_voicing: bool) -> list[int]:
     return notes
 
 
-def compose(S: dict, rng_harmony, rng_bells):
+def compose(S: dict, rng_harmony, rng_bells, rng_drums):
+    if S["groove.enabled"]:
+        return compose_groove(S, rng_harmony, rng_bells, rng_drums)
     total = S["minutes"] * 60
     scale = SCALES[S["harmony.scale"]]
     key = NOTE_NAMES.index(S["harmony.key"])
@@ -296,7 +343,73 @@ def compose(S: dict, rng_harmony, rng_bells):
     return notes, chords
 
 
-def compose_bells(S: dict, rng, chords, total: float) -> list[Note]:
+def compose_groove(S: dict, rng_harmony, rng_bells, rng_drums):
+    """The beat version of compose(): chords loop on bar lines, sections
+    switch between no drums, a beat, and a full beat, and drums, 808 and a
+    quantized melody are written on top (see groove.py)."""
+    total = S["minutes"] * 60
+    grid = groove.Grid(S)
+    n_bars = math.ceil(total / grid.bar)
+    scale = SCALES[S["harmony.scale"]]
+    key = NOTE_NAMES.index(S["harmony.key"])
+    moves, weights = zip(*CHORD_MOVES.items())
+    weights = np.array(weights) / sum(weights)
+    every = S["harmony.modulate_minutes"] * 60
+    next_modulation = every or math.inf
+    per_chord = S["groove.bars_per_chord"]
+
+    notes: list[Note] = []
+    chords = []
+    degree, bar, loop, plays = 0, 0, [], S["groove.loop_repeats"]
+    while bar < n_bars:
+        if plays >= S["groove.loop_repeats"]:  # time for a new progression
+            if bar * grid.bar >= next_modulation:
+                key = (key + int(rng_harmony.choice([5, 7]))) % 12
+                degree = 0
+                next_modulation += every
+            loop = []
+            for _ in range(S["groove.loop_chords"]):
+                loop.append(degree)
+                degree = (degree + int(rng_harmony.choice(moves, p=weights))) % len(scale)
+            plays = 0
+        for d in loop:
+            if bar >= n_bars:
+                break
+            start, end = bar * grid.bar, min((bar + per_chord) * grid.bar, total)
+            pcs = chord_pitch_classes(key, scale, d, S["harmony.chord_notes"])
+            chords.append((start, end, key, pcs))
+            if S["pad.enabled"]:
+                every_beats = S["pad.restrike_beats"]
+                strikes = list(np.arange(start, end, every_beats * grid.beat)) if every_beats else [start]
+                for i, s0 in enumerate(strikes):
+                    s1 = strikes[i + 1] if i + 1 < len(strikes) else end
+                    for m in voice_chord(pcs, S["pad.octave"], S["pad.open_voicing"]):
+                        notes.append(make_note("pad", float(s0), float(s1), float(s1) + S["pad.synth.release"], m,
+                                               vel=1 / math.sqrt(len(pcs))))
+            bar += per_chord
+        plays += 1
+
+    energies = groove.section_energies(S, rng_drums, n_bars)
+    hits, kick_steps = groove.drum_hits(S, rng_drums, grid, energies, total)
+    for kind, t, vel, pan in hits:
+        if S[f"{kind}.enabled"]:
+            hold = t + S[f"{kind}.synth.decay"]
+            notes.append(make_note(kind, t, hold, hold + S[f"{kind}.synth.release"], S[f"{kind}.midi"],
+                                   vel=vel, pan=pan))
+
+    chord_starts = [c[0] for c in chords]
+    root_at = lambda t: chords[bisect.bisect_right(chord_starts, t) - 1][3][0]
+    for t, until, midi, glide in groove.bass_line(S, rng_drums, grid, energies, kick_steps, root_at, total):
+        if S["bass.enabled"]:
+            notes.append(make_note("bass", t, until, until + S["bass.synth.release"], midi, glide_from=glide))
+
+    if S["bells.enabled"] and S["bells.per_minute"] > 0:
+        notes += compose_bells(S, rng_bells, chords, total, grid=grid)
+    notes.sort(key=lambda n: n.start)
+    return notes, chords
+
+
+def compose_bells(S: dict, rng, chords, total: float, grid=None) -> list[Note]:
     """Random (Poisson) timing, thinned by a slowly wandering density, so bells
     come in waves. Each pitch is a short step from the last one, favouring
     chord notes. That makes a meandering melody instead of random plinks."""
@@ -311,10 +424,13 @@ def compose_bells(S: dict, rng, chords, total: float) -> list[Note]:
 
     chord_starts = [c[0] for c in chords]
     gap = 60 / S["bells.per_minute"]
-    notes, prev = [], (lo + hi) / 2
+    notes, prev, last = [], (lo + hi) / 2, -1.0
     t = rng.exponential(gap)
     while t < total:
-        if rng.random() < density[int(t // 30)]:
+        when = t
+        if grid is not None:  # with the groove on, play on the nearest 8th note
+            when = round(t / (2 * grid.step)) * 2 * grid.step
+        if when > last and when < total and rng.random() < density[int(t // 30)]:
             _, _, key, pcs = chords[bisect.bisect_right(chord_starts, t) - 1]
             pool = np.array([m for m in range(lo, hi + 1) if (m - key) % 12 in scale])
             in_chord = np.isin(pool % 12, pcs)
@@ -322,10 +438,10 @@ def compose_bells(S: dict, rng, chords, total: float) -> list[Note]:
             w = np.exp(-dist / 4) * np.where(in_chord, bias, 1 - bias) * np.where(dist == 0, 0.3, 1) + 1e-9
             m = int(rng.choice(pool, p=w / w.sum()))
             # a struck note is "held" for its decay time, then released
-            hold = t + S["bells.synth.decay"]
-            notes.append(make_note("bells", t, hold, hold + S["bells.synth.release"], m,
+            hold = when + S["bells.synth.decay"]
+            notes.append(make_note("bells", when, hold, hold + S["bells.synth.release"], m,
                                    vel=rng.uniform(0.4, 1.0), pan=rng.uniform(-0.7, 0.7)))
-            prev = m
+            prev, last = m, when
         t += rng.exponential(gap)
     return notes
 
@@ -399,6 +515,11 @@ def render(S: dict, notes: list[Note], out_path: Path, rngs) -> dict:
     patches = {layer: {p["name"]: S[f"{layer}.synth.{p['name']}"] for p in synth.PARAMS} for layer in LAYER_PATCHES}
     air = Air(S, sr, rngs["air"]) if S["air.enabled"] else None
     reverb = Reverb(S, sr, rngs["reverb"])
+    vinyl = groove.Vinyl(S, sr, int(rngs["vinyl"].integers(2**31))) if S["vinyl.enabled"] else None
+    crusher = groove.Crusher(S, sr) if S["master.bitcrush_bits"] or S["master.downsample_hz"] else None
+    # sidechain: pad, bass and melody dip on every kick
+    ducking = S["groove.enabled"] and S["groove.duck_depth"] > 0
+    kick_times = np.array(sorted(n.start for n in notes if n.kind == "kick"))
     lowpass = signal.butter(2, min(S["master.lowpass_hz"], 0.45 * sr), fs=sr, output="sos")
     lowpass_zi = np.zeros((lowpass.shape[0], 2, 2))
     gain = 10 ** (S["master.gain_db"] / 20)
@@ -423,6 +544,8 @@ def render(S: dict, notes: list[Note], out_path: Path, rngs) -> dict:
 
             dry = np.zeros((2, n))
             send = np.zeros((2, n))
+            ducked_dry = np.zeros((2, n)) if ducking else dry  # without ducking these are the same arrays
+            ducked_send = np.zeros((2, n)) if ducking else send
             for note in active:
                 i0 = max(0, math.ceil((note.start - t0) * sr))
                 i1 = min(n, math.ceil((note.end - t0) * sr))
@@ -430,18 +553,31 @@ def render(S: dict, notes: list[Note], out_path: Path, rngs) -> dict:
                     continue
                 left, right = synth.render(note, t[i0:i1] - note.start, patches[note.kind], sr)
                 level, rsend = S[f"{note.kind}.level"], S[f"{note.kind}.reverb_send"]
-                dry[0, i0:i1] += left * level
-                dry[1, i0:i1] += right * level
-                send[0, i0:i1] += left * level * rsend
-                send[1, i0:i1] += right * level * rsend
+                d, sd = (dry, send) if note.kind in DRUMS else (ducked_dry, ducked_send)
+                d[0, i0:i1] += left * level
+                d[1, i0:i1] += right * level
+                sd[0, i0:i1] += left * level * rsend
+                sd[1, i0:i1] += right * level * rsend
+            if ducking:
+                g = groove.duck_gain(t, kick_times, S["groove.duck_depth"], S["groove.duck_release"])
+                dry += ducked_dry * g
+                send += ducked_send * g
             if air:
                 a = air.render(t) * S["air.level"]
                 dry += a
                 send += a * S["air.reverb_send"]
 
             mix = dry + reverb.process(send) * S["reverb.level"]
+            index = s0 + np.arange(n, dtype=np.int64)
+            if vinyl:
+                mix += vinyl.render(index)
 
-            # master: warmth filter, fades, gain, soft limiter
+            # master: saturation, crusher, warmth filter, fades, gain, soft limiter
+            if S["master.saturation"] > 0:
+                k = 1 + 4 * S["master.saturation"]
+                mix = np.tanh(mix * k) / k
+            if crusher:
+                mix = crusher.process(mix, index)
             mix, lowpass_zi = signal.sosfilt(lowpass, mix, axis=-1, zi=lowpass_zi)
             fade = np.ones(n)
             if S["master.fade_in"] > 0:
@@ -485,7 +621,7 @@ def main(argv=None) -> int:
     p.add_argument("--seed", type=int, help="random seed (overrides the preset; 0 = fresh)")
     p.add_argument("--preset", help="JSON file of settings (a render's .json sidecar works too)")
     p.add_argument("--set", action="append", default=[], metavar="PATH=VALUE",
-                   help="override one setting, e.g. --set pad.brightness=0.2 (repeatable)")
+                   help="override one setting, e.g. --set pad.synth.cutoff_hz=500 (repeatable)")
     p.add_argument("--out", help="output WAV path (default: renders/ambient_<preset>_<seed>.wav)")
     p.add_argument("--list-params", action="store_true", help="print every knob as JSON and exit")
     p.add_argument("--list-patches", action="store_true", help="print every synth patch as JSON and exit")
@@ -520,16 +656,19 @@ def main(argv=None) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
 
     # independent random streams, so e.g. changing the air layer doesn't change the melody
-    streams = np.random.SeedSequence(S["seed"]).spawn(5)
-    rngs = dict(zip(["harmony", "bells", "air", "reverb", "dither"], map(np.random.default_rng, streams)))
+    streams = np.random.SeedSequence(S["seed"]).spawn(7)
+    rngs = dict(zip(["harmony", "bells", "air", "reverb", "dither", "drums", "vinyl"],
+                    map(np.random.default_rng, streams)))
 
     ambient_io.emit("plan", steps=[{"step": "compose", "label": "Composing"},
                                    {"step": "render", "label": "Rendering audio"}])
     with ambient_io.step("compose", "Composing"):
-        notes, chords = compose(S, rngs["harmony"], rngs["bells"])
-    counts = {k: sum(n.kind == k for n in notes) for k in ("pad", "bass", "bells")}
-    print(f"{S['minutes']:g} min of {S['harmony.key']} {S['harmony.scale']}, seed {S['seed']}: "
-          f"{len(chords)} chords, {counts['bells']} bell notes -> {out}", file=sys.stderr)
+        notes, chords = compose(S, rngs["harmony"], rngs["bells"], rngs["drums"])
+    counts = {k: sum(n.kind == k for n in notes) for k in LAYER_PATCHES}
+    beat = f"{S['groove.bpm']:g} BPM, " if S["groove.enabled"] else ""
+    drums = f", {sum(counts[k] for k in DRUMS)} drum hits" if S["groove.enabled"] else ""
+    print(f"{S['minutes']:g} min of {S['harmony.key']} {S['harmony.scale']}, {beat}seed {S['seed']}: "
+          f"{len(chords)} chords, {counts['bells']} bell notes{drums} -> {out}", file=sys.stderr)
 
     with ambient_io.step("render", "Rendering audio"):
         stats = render(S, notes, out, rngs)
