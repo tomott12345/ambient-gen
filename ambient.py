@@ -9,6 +9,8 @@ ambient.py -- generative ambient music, rendered straight to a long WAV file.
     python3 ambient.py --set pad.patch=warm_strings --set pad.synth.cutoff_hz=500
     python3 ambient.py --list-params                 # every knob as JSON (for a UI)
     python3 ambient.py --list-patches                # every synth patch
+    python3 ambient.py --preset presets/techno.json --midi-out FM-1 --midi-layers lead   # play a hardware synth
+    python3 ambient.py --preset presets/night.json --export-midi night.mid --no-audio    # save a MIDI file
 
 Every run also writes <name>.json next to the WAV with the exact settings and
 seed. Pass that file back with --preset to render the identical piece again.
@@ -45,6 +47,7 @@ from scipy import signal
 
 import ambient_io
 import groove
+import midi_out
 import synth
 
 TAU = 2 * math.pi
@@ -716,7 +719,21 @@ def main(argv=None) -> int:
     p.add_argument("--list-patches", action="store_true", help="print every synth patch as JSON and exit")
     p.add_argument("--list-presets", action="store_true", help="print every preset in presets/ as JSON and exit")
     p.add_argument("--progress-json", action="store_true", help="print @@progress events for a front end")
+    m = p.add_argument_group("MIDI (see midi_out.py)")
+    m.add_argument("--export-midi", metavar="PATH", help="also save the composition as a .mid file, one track per layer")
+    m.add_argument("--midi-out", metavar="PORT", help="play layers live on a MIDI synth (part of the port name, e.g. FM-1)")
+    m.add_argument("--midi-layers", default="pad", help="layers to send with --midi-out, comma-separated (default: pad)")
+    m.add_argument("--midi-channel", type=int, default=1, help="MIDI channel for --midi-out, 1-16 (default 1)")
+    m.add_argument("--midi-voices", type=int, default=12, help="most notes held at once; 0 = no limit (default 12, the FM-1's)")
+    m.add_argument("--midi-clock", action="store_true", help="also send MIDI clock so the synth's arp/sequencer follows the tempo")
+    m.add_argument("--midi-offset-ms", type=float, default=0.0, help="shift the MIDI against the backing track (+ = later)")
+    m.add_argument("--list-midi-ports", action="store_true", help="print the MIDI outputs this computer can see and exit")
+    p.add_argument("--no-audio", action="store_true", help="don't render a WAV (e.g. MIDI only)")
     args = p.parse_args(argv)
+
+    if args.list_midi_ports:
+        print("\n".join(midi_out.list_ports()) or "(no MIDI outputs found)")
+        return 0
 
     if args.list_params:
         print(json.dumps([{**k, "type": type(k["default"]).__name__} for k in KNOBS], indent=2))
@@ -744,6 +761,16 @@ def main(argv=None) -> int:
     out = Path(args.out) if args.out else Path("renders") / f"ambient_{name}_{S['seed']}.wav"
     out.parent.mkdir(parents=True, exist_ok=True)
 
+    midi_layers = [l.strip() for l in args.midi_layers.split(",") if l.strip()]
+    if args.midi_out:
+        unknown = [l for l in midi_layers if l not in LAYER_PATCHES]
+        if unknown:
+            raise SystemExit(f"--midi-layers: unknown layer(s) {unknown}; choose from {', '.join(LAYER_PATCHES)}")
+        if not 1 <= args.midi_channel <= 16:
+            raise SystemExit("--midi-channel must be 1-16")
+        port = midi_out.find_port(args.midi_out)  # fail now, not after a long render
+        out = out.with_name(out.stem + "_backing.wav")  # the synth plays midi_layers; the WAV is everything else
+
     # independent random streams, so e.g. changing the air layer doesn't change the melody
     streams = np.random.SeedSequence(S["seed"]).spawn(8)
     rngs = dict(zip(["harmony", "bells", "air", "reverb", "dither", "drums", "vinyl", "lead"],
@@ -760,18 +787,46 @@ def main(argv=None) -> int:
     print(f"{S['minutes']:g} min of {S['harmony.key']} {S['harmony.scale']}, {beat}seed {S['seed']}: "
           f"{len(chords)} chords, {counts['bells']} bell notes{lead}{drums} -> {out}", file=sys.stderr)
 
-    with ambient_io.step("render", "Rendering audio"):
-        stats = render(S, notes, out, rngs)
+    files = []
+    if args.export_midi:
+        layers = midi_out.export(notes, args.export_midi, S["groove.bpm"])
+        print(f"MIDI file: {args.export_midi} ({', '.join(layers)})", file=sys.stderr)
+        files.append({"kind": "midi", "format": "mid", "path": str(Path(args.export_midi).resolve())})
 
-    sidecar = out.with_suffix(".json")
-    sidecar.write_text(json.dumps({"settings": nest(S), "chords": len(chords), "notes": counts, **stats}, indent=2))
-    fmt = f"wav{S['bit_depth']}"
-    ambient_io.emit("output", kind="master", format=fmt, path=str(out.resolve()))
-    ambient_io.emit("manifest", files=[{"kind": "master", "format": fmt, "path": str(out.resolve())},
-                                       {"kind": "settings", "format": "json", "path": str(sidecar.resolve())}])
-    print(f"done: {stats['seconds_rendered'] / 60:.1f} min in {stats['render_seconds']} s "
-          f"({stats['speed_x_realtime']}x realtime), peak {stats['peak_dbfs_before_limiter']} dBFS",
-          file=sys.stderr)
+    if args.midi_out:
+        if not any(n.kind in midi_layers for n in notes):
+            raise SystemExit(f"--midi-layers {', '.join(midi_layers)}: this piece has no notes in those layers "
+                             f"(is the layer enabled? in techno, an element may only enter later in a long piece)")
+        audio_notes = [n for n in notes if n.kind not in midi_layers]
+    else:
+        audio_notes = notes
+
+    stats = {}
+    if not args.no_audio:
+        with ambient_io.step("render", "Rendering audio"):
+            stats = render(S, audio_notes, out, rngs)
+        fmt = f"wav{S['bit_depth']}"
+        ambient_io.emit("output", kind="master", format=fmt, path=str(out.resolve()))
+        files.append({"kind": "master", "format": fmt, "path": str(out.resolve())})
+        print(f"done: {stats['seconds_rendered'] / 60:.1f} min in {stats['render_seconds']} s "
+              f"({stats['speed_x_realtime']}x realtime), peak {stats['peak_dbfs_before_limiter']} dBFS",
+              file=sys.stderr)
+
+    sidecar = out.with_suffix(".json")  # settings + seed, so the piece can always be made again
+    midi_info = {"midi_out": {"port": port, "layers": midi_layers, "channel": args.midi_channel,
+                              "note": "these layers were played on the synth and left out of the WAV"}} if args.midi_out else {}
+    sidecar.write_text(json.dumps({"settings": nest(S), "chords": len(chords), "notes": counts, **midi_info, **stats},
+                                  indent=2))
+    files.append({"kind": "settings", "format": "json", "path": str(sidecar.resolve())})
+    ambient_io.emit("manifest", files=files)
+
+    if args.midi_out:
+        backing = None if args.no_audio else out
+        print(f"playing {', '.join(midi_layers)} on {port} (channel {args.midi_channel})"
+              f"{' with the backing track' if backing else ''}. Ctrl-C stops.", file=sys.stderr)
+        midi_out.play(notes, port, midi_layers, args.midi_channel, S["groove.bpm"],
+                      voices=args.midi_voices or None, clock=args.midi_clock,
+                      backing_wav=backing, offset_ms=args.midi_offset_ms)
     return 0
 
 

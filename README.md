@@ -26,6 +26,7 @@ python3 ambient.py --preset presets/dark_ambient.json --minutes 6
 - [How it works](#how-it-works)
 - [Beats: the groove mode](#beats-the-groove-mode)
 - [Techno: long tracks and jams](#techno-long-tracks-and-jams)
+- [Playing a hardware synth (MIDI)](#playing-a-hardware-synth-midi)
 - [The synth engine](#the-synth-engine)
 - [Patches](#patches)
 - [Changing settings](#changing-settings)
@@ -42,7 +43,8 @@ python3 ambient.py --preset presets/dark_ambient.json --minutes 6
 
 ## Quick start
 
-You need Python 3.10+ with numpy, scipy and numba:
+You need Python 3.10+ with numpy, scipy and numba (plus mido and
+python-rtmidi if you want MIDI):
 
 ```bash
 pip3 install -r requirements.txt
@@ -358,6 +360,72 @@ python3 ambient.py --preset presets/techno.json \
   --set lead.synth.resonance=0.9 --set lead.synth.drive=0.7 \
   --set kick.synth.decay=0.8 --set techno.acid_slide=0.4
 ```
+
+---
+
+## Playing a hardware synth (MIDI)
+
+The composer plans every note before any audio is made, so any layer can
+be sent to a real synthesizer instead of (or as well as) the built-in
+engine. `midi_out.py` does this, either live or as a MIDI file. It was built
+around the **M-VAVE FM-1** on stock firmware (a 6-operator FM synth that
+plays one sound at a time, on one MIDI channel, with 12 voices), but it
+works with any MIDI instrument.
+
+```bash
+python3 ambient.py --list-midi-ports                         # what this computer can see
+python3 ambient.py --preset presets/techno.json --minutes 30 --midi-out FM-1 --midi-layers lead
+python3 ambient.py --preset presets/night.json --minutes 20 --midi-out FM-1 --midi-layers pad --midi-voices 12
+python3 ambient.py --preset presets/lofi_trap.json --minutes 10 --export-midi lofi.mid --no-audio
+```
+
+**Live (`--midi-out PORT`).** `PORT` is any part of the port name, e.g.
+`FM-1`. The layers in `--midi-layers` (default `pad`) are sent on
+`--midi-channel` (default 1), in real time. Everything else is rendered
+to a **backing track** (`..._backing.wav`) and played through the Mac's
+speakers at the same moment, so the synth plays its part over the rest of
+the piece. Add `--no-audio` for the synth alone.
+
+- **Note length.** Each note gets a note-on at its start and a note-off at
+  its release; the synth's own envelope plays the fade-out.
+- **Voice limit (`--midi-voices`, default 12).** If more notes would hold
+  at once than the synth has voices, the oldest is released first, so
+  nothing hangs. Use `0` for no limit.
+- **Clock (`--midi-clock`).** Sends MIDI clock and start/stop at the
+  piece's BPM, so the synth's arpeggiator or sequencer can follow along.
+- **Sync (`--midi-offset-ms`).** The synth and the backing track start
+  together; if your setup has a little latency, shift the MIDI later
+  (positive) or earlier (negative) until they line up by ear.
+- **Stopping.** Ctrl-C stops cleanly: every sounding note is released and
+  an all-notes-off is sent.
+
+**MIDI file (`--export-midi PATH`).** Saves the whole composition as a
+standard `.mid` file with one track per layer: pad on channel 1, bass 2,
+bells 3, lead 4, and drums on channel 10 using General MIDI drum notes.
+Load it into any DAW to play it on hardware or software instruments, edit
+it, or record the result.
+
+**With the FM-1 (stock firmware)**
+
+1. Connect the FM-1 over USB-C. It is class-compliant, so it shows up
+   without drivers; check with `--list-midi-ports`.
+2. In the FM-1's Global menu, set the **Note Channel** to 1 (or pass
+   `--midi-channel` to match it).
+3. Pick the sound on the FM-1 itself. The stock firmware doesn't take
+   program changes, and it plays one sound at a time.
+4. Send it one part. With 12 voices and one sound, these work best:
+
+   | Style | Send | A good FM-1 sound |
+   |---|---|---|
+   | Techno (`techno`, `acid_techno`, ...) | `lead` (the acid/arp sequence) or `bass` | Bass or plucked lead |
+   | Lo-fi (`lofi_trap`, ...) | `pad` (the chords, restruck) or `bells` (melody) | Electric piano |
+   | Ambient (`night`, `aurora`, ...) | `pad` or `bells` | Pad, bell or e-piano |
+
+   Several layers can go to it at once (`--midi-layers pad,bells`), but
+   they will all use the FM-1's one sound.
+5. Drums stay in the backing track: the stock firmware has no drum sounds.
+   (Community firmwares such as Felucca and Melodee add multiple parts and
+   drums; this module could map layers to their channels later.)
 
 ---
 
@@ -861,11 +929,12 @@ ambient-gen/
 ├── ambient.py        the script: scales, settings, composing, rendering, command line
 ├── synth.py          the synth engine: PARAMS, oscillators, filter, envelopes
 ├── groove.py         beats: grid, sections, drum patterns, 808 line, vinyl, sidechain, crusher
+├── midi_out.py       MIDI: play layers live on a hardware synth, export .mid files
 ├── ambient_io.py     plumbing: streaming WAV/RF64 writer, @@progress events
 ├── patches/          synth sounds (one JSON per patch)
 ├── presets/          moods (one JSON per preset)
 ├── renders/          output WAVs + sidecars (git-ignored)
-└── requirements.txt  numpy, scipy, numba
+└── requirements.txt  numpy, scipy, numba (+ mido, python-rtmidi for MIDI)
 ```
 
 ---
@@ -875,6 +944,9 @@ ambient-gen/
 | Problem | Fix |
 |---|---|
 | `ModuleNotFoundError: numba` | `pip3 install -r requirements.txt` |
+| `MIDI needs two packages` | `pip3 install mido python-rtmidi` |
+| `no MIDI output matching 'FM-1'` | Is the synth plugged in and switched on? `--list-midi-ports` shows what the computer sees; pass any part of that name |
+| The synth and backing track drift apart by a fixed amount | Use `--midi-offset-ms` (e.g. `40` or `-40`) to line them up |
 | The first render pauses for a moment before starting | numba is compiling the filter. The compiled code is cached in `__pycache__/`, so later runs start immediately. |
 | `unknown setting 'pad.brightness'` | That setting is from before the synth engine. Use `pad.synth.cutoff_hz` (and the other `pad.synth.*` settings) instead. Sidecars from that version can be replayed by checking out commit `af7ebda`. |
 | Render is slow | Lower `pad.synth.unison` or `harmony.chord_notes`, or use a patch without a filter. Unison voices × chord notes is the main cost. |
