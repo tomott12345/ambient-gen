@@ -721,6 +721,8 @@ def main(argv=None) -> int:
     p.add_argument("--progress-json", action="store_true", help="print @@progress events for a front end")
     m = p.add_argument_group("MIDI (see midi_out.py)")
     m.add_argument("--export-midi", metavar="PATH", help="also save the composition as a .mid file, one track per layer")
+    m.add_argument("--midi-merge-drums", action="store_true",
+                   help="with --export-midi: all drums on one track, as an MPC or drum machine expects")
     m.add_argument("--midi-out", metavar="PORT", help="play layers live on a MIDI synth (part of the port name, e.g. FM-1)")
     m.add_argument("--midi-layers", default="pad", help="layers to send with --midi-out, comma-separated (default: pad)")
     m.add_argument("--midi-channel", type=int, default=1, help="MIDI channel for --midi-out, 1-16 (default 1)")
@@ -789,7 +791,7 @@ def main(argv=None) -> int:
 
     files = []
     if args.export_midi:
-        layers = midi_out.export(notes, args.export_midi, S["groove.bpm"])
+        layers = midi_out.export(notes, args.export_midi, S["groove.bpm"], merge_drums=args.midi_merge_drums)
         print(f"MIDI file: {args.export_midi} ({', '.join(layers)})", file=sys.stderr)
         files.append({"kind": "midi", "format": "mid", "path": str(Path(args.export_midi).resolve())})
 

@@ -1,0 +1,67 @@
+{
+  "harmony": {
+    "key": "D",
+    "scale": "major",
+    "chord_notes": 3,
+    "chord_seconds_min": 8,
+    "chord_seconds_max": 14,
+    "modulate_minutes": 3
+  },
+  "pad": {
+    "patch": "organ",
+    "open_voicing": true,
+    "level": 0.5,
+    "synth": {
+      "cutoff_hz": 5000,
+      "width": 0.8,
+      "attack": 1.5,
+      "release": 4
+    }
+  },
+  "bass": {
+    "octave": 1,
+    "level": 0.3,
+    "synth": {
+      "attack": 1.5,
+      "release": 4
+    }
+  },
+  "bells": {
+    "patch": "church_bell",
+    "octave": 4,
+    "per_minute": 4,
+    "chord_bias": 1.0,
+    "level": 0.28
+  },
+  "air": {
+    "enabled": false
+  },
+  "reverb": {
+    "seconds": 12,
+    "damping": 0.35,
+    "level": 0.75,
+    "predelay_ms": 60
+  },
+  "master": {
+    "lowpass_hz": 14000,
+    "gain_db": -5,
+    "fade_in": 6,
+    "fade_out": 20
+  },
+  "lead": {
+    "enabled": true,
+    "patch": "warm_strings",
+    "octave": 5,
+    "per_minute": 24,
+    "note_beats": 2,
+    "chord_bias": 0.8,
+    "level": 0.3,
+    "synth": {
+      "attack": 0.3,
+      "release": 1.5
+    }
+  },
+  "groove": {
+    "bpm": 72
+  }
+}

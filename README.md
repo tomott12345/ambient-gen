@@ -101,6 +101,7 @@ which patches play, and how big the room is. Presets live in `presets/`.
 | `tape_memory` | A# major | Nostalgic lo-fi: warped tape strings with wow, drift and hiss | pad: `tape_strings`, bass: `round_bass`, bells: `felt_piano`, air |
 | `underwater` | G dorian | Submerged: sweeping resonant sub pad, hollow drops, heavily muffled | pad: `sub_swell`, bells: `hollow_drop`, air |
 | `cathedral` | G major | Sacred: drawbar organ, low bells, 18 s hall | pad: `organ`, bass: `round_bass`, bells: `church_bell` |
+| `cathedral_majestic` | D major | Majestic and uplifting: bright open organ, soaring strings lead, chords every 8-14 s, key lifts every 3 min | pad: `organ`, bass: `round_bass`, bells: `church_bell`, lead: `warm_strings` |
 | `koto_garden` | E hirajoshi | Sparse and Japanese: hirajoshi plucks over a faint pad | pad: `soft_pad`, bells: `koto_pluck`, air |
 | `glass` | E lydian | Bright and busy: lydian supersaw, crystalline FM bells | pad: `shimmer_pad`, bells: `glass_crystal`, air |
 | `aurora` | B lydian | Wide and shimmering: lydian pad, glass bells, 15 s reverb | pad: `shimmer_pad`, bass: `round_bass`, bells: `glass_crystal`, air |
@@ -404,6 +405,22 @@ standard `.mid` file with one track per layer: pad on channel 1, bass 2,
 bells 3, lead 4, and drums on channel 10 using General MIDI drum notes.
 Load it into any DAW to play it on hardware or software instruments, edit
 it, or record the result.
+
+- **Timing.** Groove presets (lo-fi and techno) line up with the DAW's bar
+  grid (tempo and 4/4 are in the file); swing and humanize are kept in the
+  note positions, so quantize if you want them straight. Pure ambient
+  presets don't follow a beat grid.
+- **Claps.** The techno clap's three quick bursts are written as one hit,
+  so a clap sample isn't triggered three times.
+- **For an MPC or drum machine, add `--midi-merge-drums`.** All drums then
+  go on one `drums` track, the way a drum program expects: one track, a
+  pad per sound. On an MPC's default (Classic) pad mapping the notes land
+  on A01 rimshot (37), A02 kick (36), A03 closed hat (42), A06 snare/clap
+  (38) and A07 open hat (46).
+
+```bash
+python3 ambient.py --preset presets/techno_punchy.json --minutes 5 --export-midi song.mid --midi-merge-drums --no-audio
+```
 
 **With the FM-1 (stock firmware)**
 

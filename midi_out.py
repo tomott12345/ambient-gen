@@ -101,29 +101,61 @@ def note_events(notes, channel_for: dict, voices: int | None = None):
     return events
 
 
-def export(notes, path, bpm: float, layers=None):
-    """Write a type-1 .mid file: a tempo track, then one track per layer."""
+def collapse_flams(notes, window: float = 0.04):
+    """Drum hits of the same kind closer together than `window` seconds (the
+    techno clap's three quick bursts) become one hit: the loudest. That suits
+    a sample-based drum machine, where retriggering a clap sample three times
+    in 20 ms sounds smeared rather than like a clap."""
+    keep, by_kind = [], {}
+    for n in notes:
+        (by_kind.setdefault(n.kind, []) if n.kind in DRUM_LAYERS else keep).append(n)
+    for hits in by_kind.values():
+        hits.sort(key=lambda n: n.start)
+        cluster = [hits[0]] if hits else []
+        for n in hits[1:]:
+            if n.start - cluster[-1].start < window:
+                cluster.append(n)
+            else:
+                keep.append(max(cluster, key=lambda h: h.vel))
+                cluster = [n]
+        if cluster:
+            keep.append(max(cluster, key=lambda h: h.vel))
+    return keep
+
+
+def export(notes, path, bpm: float, layers=None, merge_drums: bool = False):
+    """Write a type-1 .mid file: a tempo track, then one track per layer.
+
+    merge_drums puts every drum layer on one "drums" track (channel 10), the
+    way a drum machine or MPC drum program expects: one track, a pad per
+    sound (GM notes: kick 36, snare/clap 38, rim 37, closed hat 42, open hat 46)."""
     mido = _mido()
+    notes = collapse_flams(notes)
     present = sorted({n.kind for n in notes}, key=list(EXPORT_CHANNELS).index)
     layers = [l for l in present if layers is None or l in layers]
+    groups = [(l, [l]) for l in layers if not (merge_drums and l in DRUM_LAYERS)]
+    drums = [l for l in layers if l in DRUM_LAYERS]
+    if merge_drums and drums:
+        groups.append(("drums", drums))
     ppq = 480
     mid = mido.MidiFile(type=1, ticks_per_beat=ppq)
     meta = mido.MidiTrack()
-    meta.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(bpm), time=0))
     meta.append(mido.MetaMessage("track_name", name="ambient-gen", time=0))
+    meta.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(bpm), time=0))
+    meta.append(mido.MetaMessage("time_signature", numerator=4, denominator=4, time=0))
     mid.tracks.append(meta)
-    for layer in layers:
+    for name, members in groups:
         track = mido.MidiTrack()
-        track.append(mido.MetaMessage("track_name", name=layer, time=0))
+        track.append(mido.MetaMessage("track_name", name=name, time=0))
         now = 0
-        for t, kind, ch, pitch, vel in note_events(notes, {layer: EXPORT_CHANNELS[layer]}):
+        for t, kind, ch, pitch, vel in note_events(notes, {l: EXPORT_CHANNELS[l] for l in members}):
             tick = round(t * bpm / 60 * ppq)
             msg = "note_on" if kind == "on" else "note_off"
             track.append(mido.Message(msg, channel=ch - 1, note=pitch, velocity=vel, time=max(0, tick - now)))
             now = max(now, tick)
         mid.tracks.append(track)
     mid.save(path)
-    return layers
+    return [name for name, _ in groups]
 
 
 def play(notes, port_name: str, layers: list[str], channel: int, bpm: float, voices: int | None = 12,
