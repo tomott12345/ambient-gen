@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ambient Gen</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#/">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M2 20c4-8 7-8 10 0s6 8 10 0 6-8 8-4M2 12c4-6 8-6 12 0"/></svg>
+    <span>Ambient Gen</span>
+  </a>
+  <nav class="topnav">
+    <button type="button" class="btn ghost" id="jobs-toggle" aria-controls="jobs-drawer" aria-expanded="false">
+      Songs <span class="pill" id="jobs-active" hidden>0</span>
+    </button>
+    <button type="button" class="btn ghost icon" id="theme-toggle" aria-label="Switch light/dark theme" title="Switch light/dark theme">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<div class="banner" id="banner" role="alert" hidden>
+  <span id="banner-text"></span>
+  <button type="button" class="btn ghost icon" id="banner-close" aria-label="Dismiss">×</button>
+</div>
+
+<main class="layout">
+  <!-- ============================================================ new song -->
+  <section id="wizard" aria-label="New song">
+    <div class="intro">
+      <h1>Make a song</h1>
+      <p class="muted">Pick a sound, shape it, and choose what you want back: the song, masters, a YouTube video, a Short.</p>
+    </div>
+
+    <section class="card step" id="step-preset">
+      <header class="step-head"><span class="step-num">1</span><h2>Pick a sound</h2></header>
+      <div id="presets"></div>
+    </section>
+
+    <section class="card step" id="step-shape">
+      <header class="step-head"><span class="step-num">2</span><h2>Shape it</h2>
+        <button type="button" class="btn ghost small push" id="reset-compose">Reset to the preset</button>
+      </header>
+      <div class="option-groups"><div class="opt-grid" id="easy"></div></div>
+
+      <details class="advanced" id="advanced">
+        <summary>Advanced <span class="muted small" id="adv-summary"></span></summary>
+        <div class="adv-tools">
+          <input type="search" id="adv-search" placeholder="Search settings (e.g. reverb, cutoff, kick, bpm)" aria-label="Search settings">
+          <label class="switch small"><input type="checkbox" id="adv-changed"> Only changed</label>
+        </div>
+        <div id="adv-groups"></div>
+      </details>
+    </section>
+
+    <section class="card step" id="step-release">
+      <header class="step-head"><span class="step-num">3</span><h2>Master &amp; videos</h2>
+        <label class="switch push"><input type="checkbox" id="release-on" checked> <span id="release-on-label">On</span></label>
+      </header>
+      <p class="muted small" id="release-intro">Masters the song for YouTube/Instagram, cuts a Short/Reel around its strongest moment,
+        and renders visualizer videos and captions, using process-audio's music pipeline.</p>
+      <div class="note" id="release-unavailable" hidden></div>
+      <div class="release-body">
+        <div class="subhead">Music type</div>
+        <div class="seg" id="release-type" role="group" aria-label="Music type"></div>
+        <div class="subhead">What to make</div>
+        <div class="chips" id="release-outputs"></div>
+        <div class="subhead">Audio formats</div>
+        <div class="chips" id="release-formats"></div>
+        <div class="note" id="release-slow" hidden></div>
+        <div class="subhead">Options</div>
+        <div class="option-groups" id="release-basic"></div>
+        <details class="advanced" id="release-advanced">
+          <summary>Advanced <span class="muted small" id="release-adv-summary"></span></summary>
+          <div class="option-groups" id="release-adv"></div>
+        </details>
+      </div>
+    </section>
+
+    <div class="runbar">
+      <p class="muted small" id="run-summary"></p>
+      <div class="runbar-actions">
+        <button type="button" class="btn" id="plan-btn">Show commands</button>
+        <button type="button" class="btn primary" id="run-btn">Create song</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ job view -->
+  <section id="jobview" hidden aria-live="polite">
+    <a class="back" href="#/">← New song</a>
+    <div class="job-head">
+      <div><h1 id="job-title"></h1></div>
+      <span class="state" id="job-state"></span>
+    </div>
+    <div class="facts-row" id="job-facts"></div>
+    <div class="error-box" id="job-error" hidden></div>
+    <ul class="steps" id="job-steps"></ul>
+    <div class="job-actions">
+      <button type="button" class="btn danger" id="job-cancel" hidden>Cancel</button>
+      <a class="btn" id="job-zip" hidden>Download all (.zip)</a>
+      <button type="button" class="btn" id="job-edit">Edit &amp; run again</button>
+      <button type="button" class="btn" id="job-again">Same settings, new seed</button>
+      <button type="button" class="btn ghost danger" id="job-delete" hidden>Delete</button>
+    </div>
+    <div class="results" id="job-results"></div>
+    <details class="mono-details">
+      <summary>Commands</summary>
+      <pre class="mono" id="job-commands"></pre>
+    </details>
+    <details class="mono-details">
+      <summary>Log</summary>
+      <pre class="mono" id="job-log"></pre>
+    </details>
+  </section>
+</main>
+
+<!-- ============================================================ jobs drawer -->
+<aside class="drawer" id="jobs-drawer" hidden aria-label="Songs">
+  <div class="drawer-head">
+    <h2>Songs</h2>
+    <button type="button" class="btn ghost icon" id="jobs-close" aria-label="Close">×</button>
+  </div>
+  <ul class="job-list" id="job-list"></ul>
+</aside>
+
+<!-- ============================================================ plan dialog -->
+<dialog class="modal" id="plan-dialog">
+  <div class="modal-head"><h2>What will run</h2>
+    <button type="button" class="btn ghost icon" id="plan-close" aria-label="Close">×</button></div>
+  <div id="plan-body"></div>
+  <div class="modal-foot">
+    <button type="button" class="btn" id="plan-cancel">Close</button>
+    <button type="button" class="btn primary" id="plan-run">Create song</button>
+  </div>
+</dialog>
+</body>
+</html>

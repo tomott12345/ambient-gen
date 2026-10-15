@@ -289,6 +289,7 @@ def load_settings(preset: str | None, overrides: list[str]) -> dict:
     if preset:
         data = json.loads(Path(preset).read_text())
         data = data.get("settings", data)  # also accepts a render's .json sidecar
+        data = {k: v for k, v in data.items() if k != "description"}  # a preset's one-line description
         given.update(flatten(data))
     for item in overrides:
         path, sep, v = item.partition("=")
@@ -707,6 +708,27 @@ def render(S: dict, notes: list[Note], out_path: Path, rngs) -> dict:
 # 6. COMMAND LINE
 # =============================================================================
 
+def describe() -> dict:
+    """Everything a front end needs to build its form, in one document:
+    every setting (as --list-params), every preset with its description,
+    its own settings and the fully resolved values it renders with, and
+    every patch with its synth values (so a UI can show what a layer's
+    synth settings become when its patch changes)."""
+    presets = []
+    for f in sorted(Path(__file__).parent.glob("presets/*.json")):
+        raw = json.loads(f.read_text())
+        presets.append({"name": f.stem, "description": raw.get("description", ""),
+                        "settings": flatten({k: v for k, v in raw.items() if k != "description"}),
+                        "resolved": load_settings(str(f), [])})
+    return {
+        "params": [{**k, "type": type(k["default"]).__name__} for k in KNOBS],
+        "layers": {layer: {"default_patch": patch, "drum": layer in DRUMS} for layer, patch in LAYER_PATCHES.items()},
+        "kits": groove.KITS,
+        "presets": presets,
+        "patches": [{**p, "values": synth.load_patch(p["name"])} for p in synth.patch_info()],
+    }
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Generative ambient music to a long WAV file.")
     p.add_argument("--minutes", type=float, help="length (overrides the preset)")
@@ -718,6 +740,8 @@ def main(argv=None) -> int:
     p.add_argument("--list-params", action="store_true", help="print every knob as JSON and exit")
     p.add_argument("--list-patches", action="store_true", help="print every synth patch as JSON and exit")
     p.add_argument("--list-presets", action="store_true", help="print every preset in presets/ as JSON and exit")
+    p.add_argument("--describe", action="store_true",
+                   help="print settings, presets (with resolved values) and patches (with values) as one JSON, for a UI")
     p.add_argument("--progress-json", action="store_true", help="print @@progress events for a front end")
     m = p.add_argument_group("MIDI (see midi_out.py)")
     m.add_argument("--export-midi", metavar="PATH", help="also save the composition as a .mid file, one track per layer")
@@ -739,6 +763,9 @@ def main(argv=None) -> int:
 
     if args.list_params:
         print(json.dumps([{**k, "type": type(k["default"]).__name__} for k in KNOBS], indent=2))
+        return 0
+    if args.describe:
+        print(json.dumps(describe()))
         return 0
     if args.list_presets:
         presets = sorted(Path(__file__).parent.glob("presets/*.json"))

@@ -1,0 +1,16 @@
+# docker compose up -d --build   ->  http://127.0.0.1:8766
+services:
+  ambient-gen:
+    image: ambient-gen
+    build: .
+    ports:
+      # loopback only: the app has no login
+      - "127.0.0.1:8766:8766"
+    volumes:
+      - ambient-gen-data:/data
+    restart: unless-stopped
+    # jobs that run at once (renders and videos already use several cores):
+    # command: ["-addr", "0.0.0.0:8766", "-workers", "1"]
+
+volumes:
+  ambient-gen-data:

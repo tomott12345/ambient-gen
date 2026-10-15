@@ -9,8 +9,12 @@ lines, builds and drops).
 Every run composes a new piece: chords drift through a scale, melodies
 wander, the filters breathe. Every piece can be reproduced exactly from its
 seed. The sounds come from a small, tunable synth engine, and every setting
-can be changed from presets, the command line, or (eventually) a Go web
-front end.
+can be changed from presets, the command line, or the web app, which also
+masters songs and makes YouTube videos and Shorts.
+
+```bash
+docker compose up -d --build        # the web app: http://127.0.0.1:8766
+```
 
 ```bash
 pip3 install -r requirements.txt
@@ -21,6 +25,7 @@ python3 ambient.py --preset presets/dark_ambient.json --minutes 6
 
 ## Contents
 
+- [Web app (and Docker)](#web-app-and-docker)
 - [Quick start](#quick-start)
 - [Presets](#presets)
 - [How it works](#how-it-works)
@@ -38,6 +43,28 @@ python3 ambient.py --preset presets/dark_ambient.json --minutes 6
 - [Reference: synth settings](#reference-synth-settings)
 - [Project layout](#project-layout)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## Web app (and Docker)
+
+`web/` is a Go server with a browser front end: pick a preset, shape the
+song in an **Easy** section (title, length, key, scale, tempo, seed) or
+an **Advanced** one (every setting, with search), then optionally hand it
+to [process-audio](https://github.com/tomott12345/process-audio)'s music
+pipeline. That pipeline masters it to WAV/FLAC/MP3, cuts a Short/Reel
+around its strongest moment, renders visualizer videos (16:9 YouTube,
+9:16 Short, 1:1 Instagram) and writes captions. Progress streams live;
+results come with players, downloads and a zip.
+
+```bash
+docker compose up -d --build        # then open http://127.0.0.1:8766
+```
+
+The image builds on the published process-audio image (ffmpeg, fonts and
+the release pipelines) and keeps songs in the `ambient-gen-data` volume.
+Keep the port on 127.0.0.1: the app has no login. To run it without
+Docker, or for the API, see [web/README.md](web/README.md).
 
 ---
 
@@ -726,6 +753,7 @@ so that project's Go runner can drive this one unchanged.
 
 ```bash
 python3 ambient.py --list-params    # every setting
+python3 ambient.py --describe       # settings + presets (resolved) + patches (with values), in one document
 python3 ambient.py --list-patches   # patch names + descriptions
 ```
 
@@ -947,6 +975,9 @@ ambient-gen/
 ├── synth.py          the synth engine: PARAMS, oscillators, filter, envelopes
 ├── groove.py         beats: grid, sections, drum patterns, 808 line, vinyl, sidechain, crusher
 ├── midi_out.py       MIDI: play layers live on a hardware synth, export .mid files
+├── web/              the web app (Go): see web/README.md
+├── Dockerfile        web app + engine, on the process-audio image
+├── compose.yaml      docker compose up -d --build
 ├── ambient_io.py     plumbing: streaming WAV/RF64 writer, @@progress events
 ├── patches/          synth sounds (one JSON per patch)
 ├── presets/          moods (one JSON per preset)

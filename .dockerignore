@@ -1,0 +1,8 @@
+.git
+renders/
+web/data/
+web/bin/
+**/__pycache__/
+*.wav
+*.mid
+.DS_Store
