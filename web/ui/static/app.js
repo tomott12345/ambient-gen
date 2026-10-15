@@ -324,8 +324,16 @@ let REL = null; // process-audio's release capabilities ({pipeline, formats, ...
 const METHOD_DEFAULT = "Composed and rendered by ambient-gen, a generative music engine in Python: " +
   "every note, sound and arrangement grown from a seed.";
 
+// the song's starting key, which beats process-audio's estimate in the
+// captions and tags; the server fills it in the same way (jobs.SongKey)
+function songKey() {
+  const S = current();
+  return S["harmony.key"] && S["harmony.scale"] ? `${S["harmony.key"]} ${S["harmony.scale"].replaceAll("_", " ")}` : "";
+}
+
 function relDefault(o) {
   if (o.id === "method") return METHOD_DEFAULT;
+  if (o.id === "key") return songKey();
   const t = form.release.type;
   return o.defaults_by_type && t in o.defaults_by_type ? o.defaults_by_type[t] : o.default;
 }

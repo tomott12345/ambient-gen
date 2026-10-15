@@ -306,6 +306,13 @@ func (m *Manager) Build(ctx context.Context, req *Request, outDir string) ([]Sta
 		if _, set := r.Values["method"]; !set {
 			r.Values["method"] = MethodDefault
 		}
+		// the song's real key beats process-audio's estimate (often off for
+		// modal music); older process-audio has no such option
+		if _, set := r.Values["key"]; !set && releaseHasOption(snap.Release.Caps, "key") {
+			if k := SongKey(preset, req.Values); k != "" {
+				r.Values["key"] = k
+			}
+		}
 		argv, err := m.releaseArgv(ctx, r, song, filepath.Join(outDir, "release"))
 		if err != nil {
 			return nil, 0, err
@@ -313,6 +320,46 @@ func (m *Manager) Build(ctx context.Context, req *Request, outDir string) ([]Sta
 		stages = append(stages, Stage{Name: "release", Label: "Master & videos", Argv: argv})
 	}
 	return stages, seed, nil
+}
+
+// SongKey is the generated song's starting key and scale ("F dorian",
+// "C# major pentatonic") from the user's changes over the preset. A piece
+// with harmony.modulate_minutes set drifts to neighbouring keys later on;
+// the starting key is the one it's named by.
+func SongKey(preset *describe.Preset, values map[string]any) string {
+	get := func(path string) string {
+		if v, ok := values[path].(string); ok {
+			return v
+		}
+		v, _ := preset.Resolved[path].(string)
+		return v
+	}
+	key, scale := get("harmony.key"), get("harmony.scale")
+	if key == "" || scale == "" {
+		return ""
+	}
+	return key + " " + strings.ReplaceAll(scale, "_", " ")
+}
+
+// releaseHasOption reports whether process-audio's music pipeline offers
+// an option (the release capabilities are {pipeline: {options: [...]}}).
+func releaseHasOption(raw json.RawMessage, id string) bool {
+	var c struct {
+		Pipeline struct {
+			Options []struct {
+				ID string `json:"id"`
+			} `json:"options"`
+		} `json:"pipeline"`
+	}
+	if json.Unmarshal(raw, &c) != nil {
+		return false
+	}
+	for _, o := range c.Pipeline.Options {
+		if o.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // releaseArgv asks process-audio's own build_argv (via release_bridge.py)

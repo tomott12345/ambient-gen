@@ -1,0 +1,122 @@
+# Build, test, and publish the Docker image.
+#
+#   pull requests     build + test only
+#   push to main      test, then publish ghcr.io/<owner>/ambient-gen:latest (+ :main, :sha-...)
+#   tag vX.Y.Z        test, then publish :X.Y.Z and :X.Y (and :latest)
+#
+# Users then run:  docker run -d -p 127.0.0.1:8766:8766 -v ambient-gen-data:/data ghcr.io/<owner>/ambient-gen
+name: Docker image
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: web/go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python dependencies
+        run: pip install "numpy>=1.24" "scipy>=1.10" "numba>=0.58"
+      - name: go vet + tests (including a real song through the job manager)
+        working-directory: web
+        run: |
+          go vet ./...
+          AG_PYTHON=python3 go test ./...
+
+  image:
+    name: Build and test the image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build (linux/amd64, loaded for testing)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ambient-gen:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke-test the web app with a real song + release
+        run: |
+          docker run -d --name ag -p 127.0.0.1:8766:8766 ambient-gen:ci
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8766/api/health && break; sleep 1; done
+          curl -sf http://127.0.0.1:8766/api/capabilities | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          assert len(d['compose']['presets']) >= 20, 'presets missing'
+          assert d['release']['available'], d['release'].get('reason')
+          print('presets', len(d['compose']['presets']), '| release stage on')"
+          curl -sf http://127.0.0.1:8766/ | grep -q "Ambient Gen"
+          id=$(curl -sf -X POST -H 'X-Requested-With: ambient-gen' -H 'Content-Type: application/json' \
+            http://127.0.0.1:8766/api/jobs \
+            -d '{"title":"CI","preset":"lofi_trap","values":{"minutes":0.2,"seed":1},"release":{"type":"trap","values":{"max_seconds":5},"outputs":["master","video_9x16","captions"],"formats":["wav24","mp3"]}}' \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          for i in $(seq 1 120); do
+            state=$(curl -sf http://127.0.0.1:8766/api/jobs/$id | python3 -c "import json,sys; print(json.load(sys.stdin)['state'])")
+            [ "$state" != running ] && [ "$state" != queued ] && break
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:8766/api/jobs/$id | python3 -c "
+          import json, sys
+          j = json.load(sys.stdin)
+          assert j['state'] == 'succeeded', (j['state'], j.get('error'))
+          kinds = sorted({f['kind'] for f in j['files']})
+          assert {'song', 'master', 'video_9x16', 'captions'} <= set(kinds), kinds
+          print('job ok:', kinds)"
+          docker logs ag
+
+  publish:
+    name: Publish to GitHub Container Registry
+    needs: [go, image]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/ambient-gen
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+      - name: Build and push (linux/amd64 + linux/arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha

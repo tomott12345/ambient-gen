@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -103,4 +104,93 @@ func TestSongJob(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	}
 	t.Fatal("job didn't finish in time")
+}
+
+func TestSongKey(t *testing.T) {
+	p := &describe.Preset{Resolved: map[string]any{"harmony.key": "D", "harmony.scale": "dorian"}}
+	for _, c := range []struct {
+		values map[string]any
+		want   string
+	}{
+		{nil, "D dorian"},
+		{map[string]any{"harmony.key": "F"}, "F dorian"},
+		{map[string]any{"harmony.scale": "major_pentatonic"}, "D major pentatonic"},
+	} {
+		if got := SongKey(p, c.values); got != c.want {
+			t.Errorf("SongKey(%v) = %q, want %q", c.values, got, c.want)
+		}
+	}
+	if got := SongKey(&describe.Preset{}, nil); got != "" {
+		t.Errorf("no harmony settings: %q", got)
+	}
+	if !releaseHasOption([]byte(`{"pipeline":{"options":[{"id":"title"},{"id":"key"}]}}`), "key") ||
+		releaseHasOption([]byte(`{"pipeline":{"options":[{"id":"title"}]}}`), "key") {
+		t.Error("releaseHasOption")
+	}
+}
+
+// TestReleaseGetsSongKey builds (doesn't run) release commands against the
+// sibling process-audio checkout: the song's key reaches release.py unless
+// the user set the option themselves.
+func TestReleaseGetsSongKey(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test")
+	}
+	ambient, _ := filepath.Abs("../../..")
+	pa := filepath.Join(filepath.Dir(ambient), "process-audio")
+	if _, err := os.Stat(filepath.Join(pa, "pipeline_capabilities.py")); err != nil {
+		t.Skip("no process-audio checkout next to ambient-gen")
+	}
+	python := os.Getenv("AG_PYTHON")
+	if python == "" {
+		python = "python3"
+	}
+	if exec.Command(python, "-c", "import numba, scipy").Run() != nil {
+		t.Skip("python with numba/scipy not available (set AG_PYTHON)")
+	}
+	ds := &describe.Store{Python: python, AmbientDir: ambient, ProcessAudio: pa,
+		BridgePath: filepath.Join(ambient, "web", "release_bridge.py")}
+	m, err := NewManager(t.TempDir(), ds, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Shutdown()
+	build := func(values, relValues map[string]any) []string {
+		t.Helper()
+		req := &Request{Title: "Key Test", Preset: "lofi_chill", Values: values,
+			Release: &ReleaseRequest{Type: "trap", Values: relValues, Outputs: []string{"captions"}, Formats: []string{"wav24"}}}
+		stages, _, err := m.Build(context.Background(), req, t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return stages[1].Argv
+	}
+	keyArg := func(argv []string) string {
+		for _, a := range argv {
+			if strings.HasPrefix(a, "--key") {
+				return a
+			}
+		}
+		return ""
+	}
+	snap, err := ds.Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snap.Release.Available {
+		t.Skip("process-audio unavailable: " + snap.Release.Reason)
+	}
+	p, _ := snap.Compose.Preset("lofi_chill")
+	if got, want := keyArg(build(nil, nil)), "--key="+SongKey(p, nil); got != want || want == "--key=" {
+		t.Errorf("preset key: %q, want %q", got, want)
+	}
+	if got := keyArg(build(map[string]any{"harmony.key": "F", "harmony.scale": "dorian"}, nil)); got != "--key=F dorian" {
+		t.Errorf("changed key: %q", got)
+	}
+	if got := keyArg(build(nil, map[string]any{"key": "A minor"})); got != "--key=A minor" {
+		t.Errorf("user's key: %q", got)
+	}
+	if got := keyArg(build(nil, map[string]any{"key": ""})); got != "" {
+		t.Errorf("blank key should leave detection on: %q", got)
+	}
 }

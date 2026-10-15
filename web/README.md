@@ -24,7 +24,10 @@ live progress and downloads; Python does the audio work:
    type (it follows the preset), what to make, and the audio formats. The
    options come from process-audio itself, with the same Basic/Advanced
    split (loudness target, Short length, visual style, palette, glow,
-   preview length...).
+   preview length...). Captions and tags name the song's starting key and
+   scale (e.g. "F dorian"), not process-audio's estimate. You can change it
+   under Advanced → Song key, or clear it to use the estimate. This needs
+   a process-audio version with `--key`; older ones just get the estimate.
 4. **Show commands** previews exactly what will run; **Create song** starts
    it. Progress streams live for both stages, and you can cancel. Results
    come with players, per-file downloads and a zip. **Edit & run again**
