@@ -78,7 +78,8 @@ func TestSongJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer m.Shutdown()
-	j, err := m.Create(context.Background(), Request{Title: "Test", Preset: "night", Values: map[string]any{"minutes": 0.1, "seed": 7.0}})
+	j, err := m.Create(context.Background(), Request{Title: "Test", Preset: "night", Values: map[string]any{"minutes": 0.1, "seed": 7.0},
+		MPC: true, MIDI: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +95,11 @@ func TestSongJob(t *testing.T) {
 		switch State(got["state"].(string)) {
 		case Succeeded:
 			files, _, _ := m.Files(j.ID)
-			if len(files) != 2 || files[0].Kind != "song" || files[0].Size < 1000 {
+			kinds := map[string]bool{}
+			for _, f := range files {
+				kinds[f.Kind] = true
+			}
+			if !kinds["song"] || !kinds["settings"] || !kinds["mpc"] || !kinds["midi"] || files[0].Size < 1000 {
 				t.Fatalf("files: %+v", files)
 			}
 			return

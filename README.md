@@ -32,6 +32,7 @@ python3 ambient.py --preset presets/dark_ambient.json --minutes 6
 - [Beats: the groove mode](#beats-the-groove-mode)
 - [Techno: long tracks and jams](#techno-long-tracks-and-jams)
 - [Playing a hardware synth (MIDI)](#playing-a-hardware-synth-midi)
+- [Export to an MPC (MPC 2 / MPC Beats)](#export-to-an-mpc-mpc-2--mpc-beats)
 - [The synth engine](#the-synth-engine)
 - [Patches](#patches)
 - [Changing settings](#changing-settings)
@@ -470,6 +471,41 @@ python3 ambient.py --preset presets/techno_punchy.json --minutes 5 --export-midi
 5. Drums stay in the backing track: the stock firmware has no drum sounds.
    (Community firmwares such as Felucca and Melodee add multiple parts and
    drums; this module could map layers to their channels later.)
+
+---
+
+## Export to an MPC (MPC 2 / MPC Beats)
+
+`--export-mpc DIR` writes the song as an Akai MPC project that opens
+straight in MPC 2 or MPC Beats (tested with MPC 2.15), plus a zip of it
+for moving to a standalone MPC:
+
+```bash
+python3 ambient.py --preset presets/lofi_trap.json --minutes 5 --export-mpc ~/Documents/MPC --mpc-name "Rainy Loop"
+# -> ~/Documents/MPC/Rainy Loop/Rainy Loop.xpj  (+ "Rainy Loop (MPC project).zip")
+```
+
+Open the `.xpj` (File → Open) and press play. The project contains:
+
+| Part | What it is |
+|---|---|
+| **Sequence** | Every note of the song, one track per layer (Drums, Pad, Bass, Bells, Lead), at the song's tempo and key |
+| **Drum program** | This song's own kick, snare/clap, hats, open hat and rimshot, rendered from their patches and placed on the pads their notes play (GM notes: kick 36, rim 37, snare/clap 38, hat 42, open hat 46) |
+| **Keygroup programs** | Each melodic layer sampled from its synth patch every 3 semitones across the notes the song uses. Sustained sounds loop, so long pad notes hold; struck sounds ring out in full |
+
+Everything is editable in the MPC: move notes, swap pads, resample, add
+effects. Not carried over: the reverb and master effects, per-note filter
+movement (the acid sweep), 808 glides, and the air/vinyl layers. MPC
+sequences top out at 999 bars, so later notes of very long pieces are
+left out (with a message).
+
+The format isn't documented by Akai. `mpc_export.py` explains what was
+worked out (the `.sxq` sequence is a MIDI file whose notes and track
+settings are Akai-specific events), and `mpc_templates/` holds the
+skeleton files it starts from.
+
+In the web app, tick **MPC project** under *Also export* and download the
+zip from the results.
 
 ---
 
@@ -975,6 +1011,8 @@ ambient-gen/
 ├── synth.py          the synth engine: PARAMS, oscillators, filter, envelopes
 ├── groove.py         beats: grid, sections, drum patterns, 808 line, vinyl, sidechain, crusher
 ├── midi_out.py       MIDI: play layers live on a hardware synth, export .mid files
+├── mpc_export.py     Akai MPC projects: sequence, drum kit, sampled keygroups
+├── mpc_templates/    skeleton MPC files the exporter starts from
 ├── web/              the web app (Go): see web/README.md
 ├── Dockerfile        web app + engine, on the process-audio image
 ├── compose.yaml      docker compose up -d --build

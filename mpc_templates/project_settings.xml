@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<settings>
+  <VALUE name="PadPerformSettingsVersion" val="1"/>
+  <VALUE name="PadPerform.Type" val="0"/>
+  <VALUE name="PadPerform.ScaleBasedChord" val="0"/>
+  <VALUE name="PadPerform.ChromaticChord" val="0"/>
+  <VALUE name="PadPerform.ScaleType" val="1"/>
+  <VALUE name="PadPerform.BaseNote" val="3"/>
+  <VALUE name="PadPerform.BankBehaviour" val="1"/>
+  <VALUE name="PadPerform.StartOctave" val="2"/>
+  <VALUE name="PadPerform.Velocity" val="0.0"/>
+  <VALUE name="PadPerform.ProgressionName" val="Classic-Classic Major"/>
+  <VALUE name="TouchStripResponder.Behaviour" val="TouchFX"/>
+  <VALUE name="TouchStripProjectModeProvider.Target" val="{&#10;    &quot;target&quot;: {&#10;        &quot;parameter&quot;: 2147483647,&#10;        &quot;programName&quot;: &quot;&quot;,&#10;        &quot;midiTrackIndex&quot;: {&#10;            &quot;initialized&quot;: false&#10;        },&#10;        &quot;instrumentIndex&quot;: [],&#10;        &quot;momentary&quot;: false&#10;    }&#10;}"/>
+  <VALUE name="TouchStripNoteProvider.NumNotes" val="8"/>
+  <VALUE name="TouchStripPitchBendProvider.Relative" val="0"/>
+  <VALUE name="Quantiser.TimeDivision" val="1/16"/>
+  <VALUE name="Quantiser.Enabled" val="1"/>
+  <VALUE name="Quantiser.SwingLevel" val="0.0"/>
+  <VALUE name="MidiNoteFilterPipe.Behaviour" val="0"/>
+  <VALUE name="AutomationButtonQlinkTrigger" val="0"/>
+  <VALUE name="TapsToAverage" val="3"/>
+  <VALUE name="TempoLight.enabled" val="1"/>
+  <VALUE name="BanksButtons.PressToSwitchBank" val="0"/>
+  <VALUE name="VuMeterSource" val="0"/>
+  <VALUE name="PadsSettings" val="0"/>
+  <VALUE name="ACV7QLinks.ShiftPressGoesBack" val="1"/>
+  <VALUE name="XYFXResponderSettings.Index" val="13"/>
+  <VALUE name="TouchEffectResponderSettings.Index" val="13"/>
+  <VALUE name="Arpeggiator.Enabled" val="0"/>
+  <VALUE name="Arpeggiator.Action" val="0"/>
+  <VALUE name="Arpeggiator.Latch" val="0"/>
+  <VALUE name="Arpeggiator.ArpIndex" val="Up"/>
+  <VALUE name="Arpeggiator.RhythmIndex" val="Jaunty"/>
+  <VALUE name="Arpeggiator.PatternIndex" val="Bass-Rhythm 01"/>
+  <VALUE name="Arpeggiator.Velocity" val="0"/>
+  <VALUE name="Arpeggiator.AftertouchAction" val="1"/>
+  <VALUE name="Arpeggiator.StepSize" val="240"/>
+  <VALUE name="Arpeggiator.NoteLength" val="0.5"/>
+  <VALUE name="Arpeggiator.AccentVelocity" val="1.0"/>
+  <VALUE name="Arpeggiator.NonAccentVelocity" val="0.5"/>
+  <VALUE name="Arpeggiator.Swing" val="0.5"/>
+  <VALUE name="Arpeggiator.Variation" val="0"/>
+  <VALUE name="Arpeggiator.Octaves" val="1"/>
+  <VALUE name="Arpeggiator.RhythmSpread" val="0"/>
+  <VALUE name="Arpeggiator.SustainPedalLatches" val="1"/>
+  <VALUE name="Arpeggiator.LatchMode" val="0"/>
+  <VALUE name="Arpeggiator.ModifierType" val="0"/>
+  <VALUE name="Arpeggiator.ModifierValue" val="0.0"/>
+  <VALUE name="MpcEngine.AudioTracks" val="0"/>
+  <VALUE name="MpcEngine.Mode" val="Main Mode"/>
+</settings>

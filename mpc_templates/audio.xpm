@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<MPCVObject>
+  <Version>
+    <File_Version>2.1</File_Version>
+    <Application>MPC-V</Application>
+    <Application_Version>2.14.0.20</Application_Version>
+    <Platform>OSX</Platform>
+  </Version>
+  <Program type="Audio">
+    <ProgramName>Audio 001</ProgramName>
+    <inputSource>0</inputSource>
+    <Program.Xfader.Route>0</Program.Xfader.Route>
+    <Monitor>0</Monitor>
+    <RecordArm>False</RecordArm>
+    <CueBusEnable>False</CueBusEnable>
+    <AudioRoute>
+      <AudioRoute>2</AudioRoute>
+      <AudioRouteSubIndex>0</AudioRouteSubIndex>
+      <AudioRouteChannelBitmap>3</AudioRouteChannelBitmap>
+      <InsertsEnabled>True</InsertsEnabled>
+    </AudioRoute>
+    <Send1>0.000000</Send1>
+    <Send2>0.000000</Send2>
+    <Send3>0.000000</Send3>
+    <Send4>0.000000</Send4>
+    <Volume>0.707946</Volume>
+    <Mute>False</Mute>
+    <Solo>False</Solo>
+    <Pan>0.500000</Pan>
+    <AutomationFilter>1</AutomationFilter>
+    <QLinkAssignments/>
+  </Program>
+</MPCVObject>

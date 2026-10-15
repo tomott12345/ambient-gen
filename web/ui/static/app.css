@@ -416,4 +416,5 @@ a { color: var(--accent); }
 .release-off .release-body { display: none; }
 .facts-row { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: .88rem; margin: -6px 0 14px; }
 .steps li.skipped { opacity: .55; }
+.export-note { margin-top: 10px; }
 .steps .stage-tag { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); margin-right: 6px; }

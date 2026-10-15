@@ -9,6 +9,7 @@ const el = (tag, attrs = {}, ...kids) => {
   for (const [k, v] of Object.entries(attrs)) {
     if (v === undefined || v === null || v === false) continue;
     if (k === "class") n.className = v;
+    else if (k === "style") n.style.cssText = v; // via CSSOM: the CSP blocks style attributes
     else if (k === "text") n.textContent = v;
     else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
     else if (v === true) n.setAttribute(k, "");
@@ -61,6 +62,8 @@ const form = {
   title: "",
   overrides: {},              // compose settings the user changed: path -> value
   release: { on: true, type: null, outputs: [], formats: [], values: {} },
+  mpc: false,
+  midi: false,
 };
 
 // ------------------------------------------------------------------ compose model
@@ -458,6 +461,8 @@ function renderRelease() {
   renderSummary();
 }
 $("#release-on").addEventListener("change", (e) => { form.release.on = e.target.checked; renderRelease(); });
+$("#export-mpc").addEventListener("change", (e) => { form.mpc = e.target.checked; renderSummary(); });
+$("#export-midi").addEventListener("change", (e) => { form.midi = e.target.checked; renderSummary(); });
 
 function renderReleaseNotes() {
   if (!REL) return;
@@ -483,6 +488,8 @@ function renderReleaseNotes() {
 // ------------------------------------------------------------------ run
 function request() {
   const req = { title: form.title.trim(), preset: form.preset, values: { ...form.overrides } };
+  if (form.mpc) req.mpc = true;
+  if (form.midi) req.midi = true;
   if (REL && form.release.on) {
     const r = form.release;
     const values = {};
@@ -506,6 +513,8 @@ function renderSummary() {
     const labels = form.release.outputs.map((id) => REL.pipeline.outputs.find((o) => o.id === id)?.label.split(" (")[0]);
     parts.push("then: " + (labels.join(", ") || "nothing selected"));
   }
+  const extras = [form.mpc && "MPC project", form.midi && "MIDI"].filter(Boolean);
+  if (extras.length) parts.push("+ " + extras.join(", "));
   $("#run-summary").textContent = parts.join(" · ");
   $("#run-btn").disabled = !!(REL && form.release.on && !form.release.outputs.length);
 }
@@ -603,6 +612,7 @@ function renderJob(j) {
   const facts = [`preset ${j.preset.replace(/_/g, " ")}`, `seed ${j.seed}`];
   if (r.values.minutes) facts.push(`${r.values.minutes} min`);
   if (r.release) facts.push(`released as ${r.release.type}`);
+  if (r.mpc) facts.push("MPC project");
   facts.push(when(j.created_at));
   $("#job-facts").replaceChildren(...facts.map((f) => el("span", { text: f })));
   $("#job-error").hidden = !j.error;
@@ -635,7 +645,7 @@ function renderJob(j) {
 
 const KIND_LABEL = { song: "Song", settings: "Settings (seed + every value)", master: "Master", clip: "Short / Reel clip",
   video_16x9: "YouTube video (16:9)", video_9x16: "Short / Reel video (9:16)", video_1x1: "Instagram feed video (1:1)",
-  captions: "Captions", analysis: "Analysis" };
+  captions: "Captions", analysis: "Analysis", mpc: "MPC project (zip)", midi: "MIDI file" };
 
 function renderResults(j) {
   const box = $("#job-results");
@@ -689,6 +699,10 @@ function loadRequest(req, { newSeed }) {
   } else {
     form.release.on = false;
   }
+  form.mpc = !!req.mpc;
+  form.midi = !!req.midi;
+  $("#export-mpc").checked = form.mpc;
+  $("#export-midi").checked = form.midi;
   location.hash = "#/";
   renderPresets();
   renderCompose();

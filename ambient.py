@@ -48,6 +48,7 @@ from scipy import signal
 import ambient_io
 import groove
 import midi_out
+import mpc_export
 import synth
 
 TAU = 2 * math.pi
@@ -754,6 +755,10 @@ def main(argv=None) -> int:
     m.add_argument("--midi-clock", action="store_true", help="also send MIDI clock so the synth's arp/sequencer follows the tempo")
     m.add_argument("--midi-offset-ms", type=float, default=0.0, help="shift the MIDI against the backing track (+ = later)")
     m.add_argument("--list-midi-ports", action="store_true", help="print the MIDI outputs this computer can see and exit")
+    p.add_argument("--export-mpc", metavar="DIR",
+                   help="also write an Akai MPC project (MPC 2 / MPC Beats) into DIR: sequence, drum kit and "
+                        "sampled instruments, plus a zip of it (see mpc_export.py)")
+    p.add_argument("--mpc-name", help="name of the MPC project (default: the preset and seed)")
     p.add_argument("--no-audio", action="store_true", help="don't render a WAV (e.g. MIDI only)")
     args = p.parse_args(argv)
 
@@ -821,6 +826,15 @@ def main(argv=None) -> int:
         layers = midi_out.export(notes, args.export_midi, S["groove.bpm"], merge_drums=args.midi_merge_drums)
         print(f"MIDI file: {args.export_midi} ({', '.join(layers)})", file=sys.stderr)
         files.append({"kind": "midi", "format": "mid", "path": str(Path(args.export_midi).resolve())})
+
+    if args.export_mpc:
+        layer_params = {layer: {p["name"]: S[f"{layer}.synth.{p['name']}"] for p in synth.PARAMS}
+                        for layer in LAYER_PATCHES}
+        mpc_name = args.mpc_name or f"{name} {S['seed']}"
+        xpj = mpc_export.export(S, notes, Path(args.export_mpc), mpc_name, make_note, layer_params,
+                                log=lambda m: print(m, file=sys.stderr))
+        mpc_zip = mpc_export.zip_project(xpj)
+        files.append({"kind": "mpc", "format": "zip", "path": str(mpc_zip.resolve())})
 
     if args.midi_out:
         if not any(n.kind in midi_layers for n in notes):

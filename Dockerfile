@@ -41,12 +41,13 @@ LABEL org.opencontainers.image.title="ambient-gen" \
 USER root
 # numpy/scipy/numba already come with the base image (librosa needs numba);
 # listing them makes ambient-gen's requirements explicit. MIDI isn't used in
-# a container, so mido/python-rtmidi are left out.
-RUN pip install "numpy>=1.24" "scipy>=1.10" "numba>=0.58"
+# a container, so python-rtmidi is left out (mido is needed for .mid export).
+RUN pip install "numpy>=1.24" "scipy>=1.10" "numba>=0.58" "mido>=1.3"
 
 WORKDIR /ambient
 COPY *.py ./
 COPY presets/ ./presets/
+COPY mpc_templates/ ./mpc_templates/
 COPY patches/ ./patches/
 COPY web/release_bridge.py ./web/release_bridge.py
 COPY --from=gobuild /out/agweb /usr/local/bin/agweb

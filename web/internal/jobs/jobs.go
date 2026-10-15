@@ -62,6 +62,8 @@ type Request struct {
 	Preset  string          `json:"preset"`
 	Values  map[string]any  `json:"values"`            // ambient.py settings the user changed (dotted paths)
 	Release *ReleaseRequest `json:"release,omitempty"` // nil = song only
+	MPC     bool            `json:"mpc,omitempty"`     // also export an Akai MPC project (zip)
+	MIDI    bool            `json:"midi,omitempty"`    // also export a .mid file (drums on one track)
 }
 
 // ReleaseRequest is process-audio's music pipeline form.
@@ -290,6 +292,16 @@ func (m *Manager) Build(ctx context.Context, req *Request, outDir string) ([]Sta
 	compose := append([]string{m.desc.Python, filepath.Join(m.desc.AmbientDir, "ambient.py"),
 		"--preset", filepath.Join(m.desc.AmbientDir, "presets", preset.Name+".json"),
 		"--out", song, "--progress-json"}, sets...)
+	projectName := req.Title
+	if projectName == "" {
+		projectName = fmt.Sprintf("%s %d", preset.Name, seed)
+	}
+	if req.MIDI {
+		compose = append(compose, "--export-midi", strings.TrimSuffix(song, ".wav")+".mid", "--midi-merge-drums")
+	}
+	if req.MPC {
+		compose = append(compose, "--export-mpc", filepath.Join(outDir, "song", "mpc"), "--mpc-name", projectName)
+	}
 	stages := []Stage{{Name: "song", Label: "Song", Argv: compose}}
 
 	if req.Release != nil {
@@ -870,7 +882,18 @@ func apply(j *Job, stage string, ev runner.Event, outDir string) bool {
 			}
 			kept = append(kept, File{Stage: stage, Kind: kind, Format: format, Name: filepath.Base(safe), Size: size, Path: safe})
 		}
-		sort.SliceStable(kept, func(a, b int) bool { return kept[a].Stage == "song" && kept[b].Stage != "song" })
+		// song stage first, and within it: the song, its settings, then the exports
+		order := map[string]int{"song": 0, "settings": 1, "midi": 2, "mpc": 3}
+		rank := func(f File) int {
+			if f.Stage != "song" {
+				return 100
+			}
+			if r, ok := order[f.Kind]; ok {
+				return r
+			}
+			return 50
+		}
+		sort.SliceStable(kept, func(a, b int) bool { return rank(kept[a]) < rank(kept[b]) })
 		for i := range kept {
 			kept[i].Index = i
 		}
