@@ -33,6 +33,7 @@ python3 ambient.py --preset presets/dark_ambient.json --minutes 6
 - [Techno: long tracks and jams](#techno-long-tracks-and-jams)
 - [Playing a hardware synth (MIDI)](#playing-a-hardware-synth-midi)
 - [Export to an MPC (MPC 2 / MPC Beats)](#export-to-an-mpc-mpc-2--mpc-beats)
+- [Export to Strudel (strudel.cc)](#export-to-strudel-strudelcc)
 - [The synth engine](#the-synth-engine)
 - [Patches](#patches)
 - [Changing settings](#changing-settings)
@@ -506,6 +507,47 @@ skeleton files it starts from.
 
 In the web app, tick **MPC project** under *Also export* and download the
 zip from the results.
+
+---
+
+## Export to Strudel (strudel.cc)
+
+`--export-strudel PATH` translates the song into code for
+[Strudel](https://strudel.cc), the browser live-coding environment, and
+writes a link that opens it there:
+
+```bash
+python3 ambient.py --preset presets/lofi_trap.json --minutes 3 --export-strudel song.strudel.js
+# -> song.strudel.js   the code
+#    song.strudel.url  https://strudel.cc/#...  (open it, press play, then edit it live)
+```
+
+How the translation works:
+
+- **Tempo:** `setcpm(bpm / 4)`, so one Strudel cycle is one bar of 4/4.
+- **Every note, on a fine grid:** notes are placed on 96 steps per bar
+  (enough for hi-hat rolls and triplets) and written in mini-notation, e.g.
+  `"f1@24 f1@72"` or `"[ab4,c3,eb4,f3]@96"`.
+- **Compact arrangement:** the song is cut into blocks at bar lines no note
+  is held across. Each layer is an `arrange()` of blocks, and a block that
+  repeats is written once as a named constant. A 30-minute lo-fi track is
+  about 80 KB of code; ambient pieces are a few KB.
+- **Sounds:** each layer's synth patch becomes the nearest Strudel sound
+  (`sawtooth`, `square`, `triangle`, `sine`, `supersaw` with `unison`/`detune`,
+  or FM with `fm`/`fmh`), with its filter (and filter envelope), ADSR,
+  vibrato, gain and reverb. Drums use the `RolandTR909` bank (techno, 909
+  kits) or `RolandTR808`. In grooves, the kick ducks the other layers
+  (`duckorbit`).
+
+It's a translation, not a copy: Strudel's synths and effects sound
+different, swing and humanize are snapped to the grid, and the air/vinyl
+layers, 808 glides and per-note filter sweeps are left out. Every note,
+though, plays exactly when and where ambient-gen composed it. This was
+checked by evaluating exports with Strudel's own engine and comparing every
+event against the composition.
+
+In the web app, tick **Strudel** under *Also export*. The results include
+an **Open in Strudel** button.
 
 ---
 
@@ -1012,6 +1054,7 @@ ambient-gen/
 ├── groove.py         beats: grid, sections, drum patterns, 808 line, vinyl, sidechain, crusher
 ├── midi_out.py       MIDI: play layers live on a hardware synth, export .mid files
 ├── mpc_export.py     Akai MPC projects: sequence, drum kit, sampled keygroups
+├── strudel_export.py Strudel (strudel.cc) code + share link
 ├── mpc_templates/    skeleton MPC files the exporter starts from
 ├── web/              the web app (Go): see web/README.md
 ├── Dockerfile        web app + engine, on the process-audio image

@@ -79,7 +79,7 @@ func TestSongJob(t *testing.T) {
 	}
 	defer m.Shutdown()
 	j, err := m.Create(context.Background(), Request{Title: "Test", Preset: "night", Values: map[string]any{"minutes": 0.1, "seed": 7.0},
-		MPC: true, MIDI: true})
+		MPC: true, MIDI: true, Strudel: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,8 @@ func TestSongJob(t *testing.T) {
 			for _, f := range files {
 				kinds[f.Kind] = true
 			}
-			if !kinds["song"] || !kinds["settings"] || !kinds["mpc"] || !kinds["midi"] || files[0].Size < 1000 {
+			if !kinds["song"] || !kinds["settings"] || !kinds["mpc"] || !kinds["midi"] || !kinds["strudel"] ||
+				!kinds["strudel_link"] || files[0].Size < 1000 {
 				t.Fatalf("files: %+v", files)
 			}
 			return

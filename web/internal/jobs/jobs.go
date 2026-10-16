@@ -64,6 +64,7 @@ type Request struct {
 	Release *ReleaseRequest `json:"release,omitempty"` // nil = song only
 	MPC     bool            `json:"mpc,omitempty"`     // also export an Akai MPC project (zip)
 	MIDI    bool            `json:"midi,omitempty"`    // also export a .mid file (drums on one track)
+	Strudel bool            `json:"strudel,omitempty"` // also translate it to Strudel code + a strudel.cc link
 }
 
 // ReleaseRequest is process-audio's music pipeline form.
@@ -301,6 +302,12 @@ func (m *Manager) Build(ctx context.Context, req *Request, outDir string) ([]Sta
 	}
 	if req.MPC {
 		compose = append(compose, "--export-mpc", filepath.Join(outDir, "song", "mpc"), "--mpc-name", projectName)
+	}
+	if req.Strudel {
+		compose = append(compose, "--export-strudel", strings.TrimSuffix(song, ".wav")+".strudel.js")
+		if !req.MPC {
+			compose = append(compose, "--mpc-name", projectName) // also names the Strudel code's header
+		}
 	}
 	stages := []Stage{{Name: "song", Label: "Song", Argv: compose}}
 
@@ -883,7 +890,7 @@ func apply(j *Job, stage string, ev runner.Event, outDir string) bool {
 			kept = append(kept, File{Stage: stage, Kind: kind, Format: format, Name: filepath.Base(safe), Size: size, Path: safe})
 		}
 		// song stage first, and within it: the song, its settings, then the exports
-		order := map[string]int{"song": 0, "settings": 1, "midi": 2, "mpc": 3}
+		order := map[string]int{"song": 0, "settings": 1, "midi": 2, "mpc": 3, "strudel_link": 4, "strudel": 5}
 		rank := func(f File) int {
 			if f.Stage != "song" {
 				return 100

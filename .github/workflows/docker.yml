@@ -68,7 +68,7 @@ jobs:
           curl -sf http://127.0.0.1:8766/ | grep -q "Ambient Gen"
           id=$(curl -sf -X POST -H 'X-Requested-With: ambient-gen' -H 'Content-Type: application/json' \
             http://127.0.0.1:8766/api/jobs \
-            -d '{"title":"CI","preset":"lofi_trap","values":{"minutes":0.2,"seed":1},"mpc":true,"midi":true,"release":{"type":"trap","values":{"max_seconds":5},"outputs":["master","video_9x16","captions"],"formats":["wav24","mp3"]}}' \
+            -d '{"title":"CI","preset":"lofi_trap","values":{"minutes":0.2,"seed":1},"mpc":true,"midi":true,"strudel":true,"release":{"type":"trap","values":{"max_seconds":5},"outputs":["master","video_9x16","captions"],"formats":["wav24","mp3"]}}' \
             | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
           for i in $(seq 1 120); do
             state=$(curl -sf http://127.0.0.1:8766/api/jobs/$id | python3 -c "import json,sys; print(json.load(sys.stdin)['state'])")
@@ -80,7 +80,7 @@ jobs:
           j = json.load(sys.stdin)
           assert j['state'] == 'succeeded', (j['state'], j.get('error'))
           kinds = sorted({f['kind'] for f in j['files']})
-          assert {'song', 'mpc', 'midi', 'master', 'video_9x16', 'captions'} <= set(kinds), kinds
+          assert {'song', 'mpc', 'midi', 'strudel', 'strudel_link', 'master', 'video_9x16', 'captions'} <= set(kinds), kinds
           print('job ok:', kinds)"
           docker logs ag
 

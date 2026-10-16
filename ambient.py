@@ -49,6 +49,7 @@ import ambient_io
 import groove
 import midi_out
 import mpc_export
+import strudel_export
 import synth
 
 TAU = 2 * math.pi
@@ -759,6 +760,9 @@ def main(argv=None) -> int:
                    help="also write an Akai MPC project (MPC 2 / MPC Beats) into DIR: sequence, drum kit and "
                         "sampled instruments, plus a zip of it (see mpc_export.py)")
     p.add_argument("--mpc-name", help="name of the MPC project (default: the preset and seed)")
+    p.add_argument("--export-strudel", metavar="PATH",
+                   help="also translate the song into Strudel code (strudel.cc) at PATH, plus a .url link "
+                        "that opens it there (see strudel_export.py)")
     p.add_argument("--no-audio", action="store_true", help="don't render a WAV (e.g. MIDI only)")
     args = p.parse_args(argv)
 
@@ -835,6 +839,19 @@ def main(argv=None) -> int:
                                 log=lambda m: print(m, file=sys.stderr))
         mpc_zip = mpc_export.zip_project(xpj)
         files.append({"kind": "mpc", "format": "zip", "path": str(mpc_zip.resolve())})
+
+    if args.export_strudel:
+        layer_params = {layer: {p["name"]: S[f"{layer}.synth.{p['name']}"] for p in synth.PARAMS}
+                        for layer in LAYER_PATCHES}
+        code, url = strudel_export.export(S, notes, args.mpc_name or name, layer_params)
+        code_path = Path(args.export_strudel)
+        code_path.parent.mkdir(parents=True, exist_ok=True)
+        code_path.write_text(code)
+        url_path = code_path.with_suffix(".url")
+        url_path.write_text(url + "\n")
+        print(f"strudel: {code_path} ({len(code.splitlines())} lines, link {len(url) // 1000} KB)", file=sys.stderr)
+        files.append({"kind": "strudel", "format": "js", "path": str(code_path.resolve())})
+        files.append({"kind": "strudel_link", "format": "url", "path": str(url_path.resolve())})
 
     if args.midi_out:
         if not any(n.kind in midi_layers for n in notes):

@@ -64,6 +64,7 @@ const form = {
   release: { on: true, type: null, outputs: [], formats: [], values: {} },
   mpc: false,
   midi: false,
+  strudel: false,
 };
 
 // ------------------------------------------------------------------ compose model
@@ -463,6 +464,7 @@ function renderRelease() {
 $("#release-on").addEventListener("change", (e) => { form.release.on = e.target.checked; renderRelease(); });
 $("#export-mpc").addEventListener("change", (e) => { form.mpc = e.target.checked; renderSummary(); });
 $("#export-midi").addEventListener("change", (e) => { form.midi = e.target.checked; renderSummary(); });
+$("#export-strudel").addEventListener("change", (e) => { form.strudel = e.target.checked; renderSummary(); });
 
 function renderReleaseNotes() {
   if (!REL) return;
@@ -490,6 +492,7 @@ function request() {
   const req = { title: form.title.trim(), preset: form.preset, values: { ...form.overrides } };
   if (form.mpc) req.mpc = true;
   if (form.midi) req.midi = true;
+  if (form.strudel) req.strudel = true;
   if (REL && form.release.on) {
     const r = form.release;
     const values = {};
@@ -513,7 +516,7 @@ function renderSummary() {
     const labels = form.release.outputs.map((id) => REL.pipeline.outputs.find((o) => o.id === id)?.label.split(" (")[0]);
     parts.push("then: " + (labels.join(", ") || "nothing selected"));
   }
-  const extras = [form.mpc && "MPC project", form.midi && "MIDI"].filter(Boolean);
+  const extras = [form.mpc && "MPC project", form.midi && "MIDI", form.strudel && "Strudel"].filter(Boolean);
   if (extras.length) parts.push("+ " + extras.join(", "));
   $("#run-summary").textContent = parts.join(" · ");
   $("#run-btn").disabled = !!(REL && form.release.on && !form.release.outputs.length);
@@ -645,7 +648,8 @@ function renderJob(j) {
 
 const KIND_LABEL = { song: "Song", settings: "Settings (seed + every value)", master: "Master", clip: "Short / Reel clip",
   video_16x9: "YouTube video (16:9)", video_9x16: "Short / Reel video (9:16)", video_1x1: "Instagram feed video (1:1)",
-  captions: "Captions", analysis: "Analysis", mpc: "MPC project (zip)", midi: "MIDI file" };
+  captions: "Captions", analysis: "Analysis", mpc: "MPC project (zip)", midi: "MIDI file",
+  strudel: "Strudel code", strudel_link: "Strudel link" };
 
 function renderResults(j) {
   const box = $("#job-results");
@@ -661,7 +665,8 @@ function renderResults(j) {
       const media = ["wav", "mp3", "flac"].includes(ext) ? el("audio", { controls: true, preload: "none", src: `${url}?inline=1` })
         : ext === "mp4" ? el("video", { controls: true, preload: "metadata", src: `${url}?inline=1`, class: f.kind === "video_9x16" ? "portrait" : null })
         : ["png", "jpg"].includes(ext) ? el("img", { src: `${url}?inline=1`, alt: f.name })
-        : ext === "txt" ? textPreview(url) : null;
+        : ext === "txt" ? textPreview(url)
+        : f.kind === "strudel_link" ? strudelButton(url) : null;
       list.append(el("div", { class: "result" },
         el("div", { class: "result-top" },
           el("span", { class: "result-name", text: f.name }),
@@ -673,6 +678,16 @@ function renderResults(j) {
     }
     box.append(el("section", { class: "card result-group" }, el("h2", { text: title }), list));
   }
+}
+// the .url file holds a strudel.cc link with the song's code in it
+function strudelButton(url) {
+  const a = el("a", { class: "btn primary small", target: "_blank", rel: "noopener", text: "Open in Strudel ↗" });
+  a.hidden = true;
+  fetch(`${url}?inline=1`).then((r) => r.text()).then((t) => {
+    const link = t.trim();
+    if (link.startsWith("https://strudel.cc/#")) { a.href = link; a.hidden = false; }
+  }).catch(() => {});
+  return a;
 }
 function textPreview(url) {
   const pre = el("pre", { text: "…" });
@@ -701,8 +716,10 @@ function loadRequest(req, { newSeed }) {
   }
   form.mpc = !!req.mpc;
   form.midi = !!req.midi;
+  form.strudel = !!req.strudel;
   $("#export-mpc").checked = form.mpc;
   $("#export-midi").checked = form.midi;
+  $("#export-strudel").checked = form.strudel;
   location.hash = "#/";
   renderPresets();
   renderCompose();

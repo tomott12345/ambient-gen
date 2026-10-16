@@ -31,7 +31,8 @@ live progress and downloads; Python does the audio work:
 4. **Also export:** an **MPC project** (a zip that opens in MPC 2 / MPC
    Beats: the sequence, a drum program with the song's drum sounds, and
    keygroup instruments sampled from its synth) and/or a **MIDI file**
-   (drums on one track).
+   (drums on one track), and/or **Strudel** code with an *Open in Strudel*
+   button (strudel.cc, the browser live-coding environment).
 5. **Show commands** previews exactly what will run; **Create song** starts
    it. Progress streams live for both stages, and you can cancel. Results
    come with players, per-file downloads and a zip. **Edit & run again**
@@ -97,7 +98,7 @@ release stage, process-audio's), and `ffmpeg` on PATH.
 |---|---|
 | `GET /api/capabilities` | `compose` (ambient.py `--describe`: settings, presets with resolved values, patches with values, kits) and `release` (process-audio's music pipeline, or why it's unavailable) |
 | `POST /api/plan` | Job body → the commands it would run and the seed, nothing rendered |
-| `POST /api/jobs` | `{title, preset, values, release?: {type, values, outputs, formats}, mpc?, midi?}` → queued job |
+| `POST /api/jobs` | `{title, preset, values, release?: {type, values, outputs, formats}, mpc?, midi?, strudel?}` → queued job |
 | `GET /api/jobs` · `GET /api/jobs/{id}` · `DELETE` | List / state / remove a finished job |
 | `POST /api/jobs/{id}/cancel` | Stops the running stage and every process it started |
 | `GET /api/jobs/{id}/events` | Server-sent events: `job` snapshots (steps, progress, files) and `log` lines |

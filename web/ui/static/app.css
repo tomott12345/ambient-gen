@@ -418,3 +418,4 @@ a { color: var(--accent); }
 .steps li.skipped { opacity: .55; }
 .export-note { margin-top: 10px; }
 .steps .stage-tag { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); margin-right: 6px; }
+.result > a.btn { justify-self: start; }
